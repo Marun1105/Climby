@@ -122,7 +122,9 @@ function initAutoUpdate(getWindowFn) {
       const { response } = await say({
         type: 'info',
         buttons: ['Restart now', 'Later'],
-        defaultId: 0,
+        // Later is the default: the box can appear while someone is typing, and
+        // one Enter must not quit the app in the middle of their work.
+        defaultId: 1,
         cancelId: 1,
         title: 'Climby',
         message: `A new version of Climby is ready (${info_.version}).`,

@@ -191,7 +191,12 @@ const Breaks = (() => {
     const bridge = window.CLIMBY_DESKTOP;
     if (bridge && typeof bridge.onNotificationClick === 'function') {
       // the window is already in front (main.js); bring the student to the session
-      bridge.onNotificationClick(() => { if (window.Nav && card) Nav.activate('focus'); });
+      bridge.onNotificationClick(tag => {
+        if (!window.Nav) return;
+        // a homework reminder leads to the homework, not to the timer
+        if (tag === 'climby-homework') Nav.activate('checklist');
+        else if (card) Nav.activate('focus');
+      });
     }
   }
 

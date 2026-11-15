@@ -233,13 +233,19 @@ const Checklist = (() => {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = t.done;
+    let completing = null;
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
         // кратка анимация, после задачата "заминава" към Историята (render идва от climby:tasks-changed)
         li.classList.add('task-completing');
-        setTimeout(() => setDone(t.id, true).catch(showListError), 320);
+        completing = setTimeout(() => { completing = null; setDone(t.id, true).catch(showActionError); }, 320);
+      } else if (completing) {
+        // unticked before the animation finished: nothing was sent yet
+        clearTimeout(completing);
+        completing = null;
+        li.classList.remove('task-completing');
       } else {
-        setDone(t.id, false).catch(showListError);
+        setDone(t.id, false).catch(showActionError);
       }
     });
     check.appendChild(checkbox);
@@ -303,10 +309,10 @@ const Checklist = (() => {
         Toast.show(window.t('checklist.deleted'), {
           action: {
             label: window.t('checklist.undo'),
-            onClick: () => addTask(t.text, t.subject, t.deadline).catch(showListError),
+            onClick: () => addTask(t.text, t.subject, t.deadline).catch(showActionError),
           },
         });
-      }).catch(showListError);
+      }).catch(showActionError);
     });
 
     li.appendChild(check);
@@ -327,6 +333,16 @@ const Checklist = (() => {
     }).length;
     badge.textContent = urgent > 9 ? '9+' : String(urgent);
     badge.classList.toggle('hidden', urgent === 0);
+  }
+
+  // An action failed (a tick, an add, an undo) — the list itself is fine.
+  // Say so and draw the list again; showListError below empties the whole
+  // list and is only for when the list could not be loaded at all.
+  function showActionError(err) {
+    const msg = (err && err.message) || t('checklist.errLoad');
+    if (!window.Toast) { showListError(err); return; }
+    Toast.show(msg);
+    render();
   }
 
   function showListError(err) {
@@ -451,7 +467,7 @@ const Checklist = (() => {
       $('taskForm').reset();
       $('taskText').focus();
     } catch (err) {
-      showListError(err);
+      showActionError(err);
     }
   }
 

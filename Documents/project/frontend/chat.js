@@ -123,7 +123,8 @@ const Chat = (() => {
       if (turn.role === 'user') el.textContent = turn.text;
       else {
         render(turn.text, el);
-        if (window.Speak) Speak.attach(el);
+        // silent: an old answer put back on screen is not read aloud again
+        if (window.Speak) Speak.attach(el, { silent: true });
         if (window.Copy) Copy.attach(el);
       }
     }
@@ -250,8 +251,9 @@ const Chat = (() => {
   function t(key, vars) { return window.t ? window.t(key, vars) : key; }
 
   function render(text, el) {
-    if (window.marked && window.DOMPurify) {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    const html = window.Md ? Md.toHtml(text) : null;
+    if (html !== null) {
+      el.innerHTML = html;
     } else {
       el.textContent = text;
     }
@@ -321,7 +323,7 @@ const Chat = (() => {
         loadingKey: 'loading.ai',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ images: [], question: text, lang: I18n.get(), history: history.slice(-THREAD_MAX),
+        body: JSON.stringify({ images: [], question: text, lang: I18n.get(), history: Net.trimHistory(history),
                                mode: window.Prefs ? Prefs.get('tutor') : 'hints',
                                context: false,
                                memory: token && window.Memory ? Memory.request() : null,
@@ -347,11 +349,13 @@ const Chat = (() => {
       window.dispatchEvent(new CustomEvent('climby:activity'));
       history.push({ role: 'user', text }, { role: 'assistant', text: data.answer });
       persist();
+      // last: signing out starts a new thread, and this answer should be seen first
+      Net.noteSession(res);
     } catch (err) {
       if (asked !== epoch) return;
       theirs.classList.remove('chat-thinking');
       theirs.classList.add('chat-error');
-      theirs.textContent = t('scanner.errOffline');
+      theirs.textContent = t(err && err.name === 'AbortError' ? 'scanner.errSlow' : 'scanner.errOffline');
     } finally {
       // A stale request leaves the busy flag alone: it may already belong to a
       // question asked in the new thread.

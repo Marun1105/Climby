@@ -17,7 +17,7 @@
 // ТРЯБВА да се вдигне — инак хората продължават да виждат старата, а на диска
 // стои новата. Точно това се случи при смяната на знака на ClimbAI: файлът беше
 // нов, екранът показваше стария и нищо не подсказваше защо.
-const CACHE = 'climby-shell-v48';
+const CACHE = 'climby-shell-v50';
 
 // Файлове, чието съдържание не се променя под същото име. Само за тях кешът изпреварва
 // мрежата; всичко останало от нашия произход тръгва по мрежата.
@@ -33,6 +33,10 @@ const SHELL = [
   './memory.js',
   './toast.js',
   './net.js',
+  './markdown.js',
+  './vendor/katex/katex.min.js',
+  './vendor/katex/auto-render.min.js',
+  './vendor/katex/katex.min.css',
   './loading.js',
   './ai-activity.js',
   './offline.js',

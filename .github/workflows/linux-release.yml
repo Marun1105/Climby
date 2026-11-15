@@ -26,6 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the tag being released. Without this a manual run built main
+          # and attached unreleased code to an older release.
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

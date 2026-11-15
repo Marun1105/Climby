@@ -51,7 +51,7 @@
 <link rel="stylesheet" href="classes.css">
 <link rel="stylesheet" href="crew.css">
 <link rel="stylesheet" href="themes.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 </head>
 <body>
 
@@ -450,7 +450,7 @@
         </select>
       </div>
     </div>
-    <div class="settings-row" data-icon="peak">
+    <div class="settings-row" data-icon="image">
       <span class="settings-label" data-i18n="look.watermark">Логото на фона</span>
       <div class="settings-control">
         <select class="settings-select" data-look="watermark" data-i18n-aria="look.watermark" aria-label="Логото на фона">
@@ -590,7 +590,7 @@
 
     <div id="familyStudentHalf" class="hidden">
     <div class="explainer settings-explainer">
-      <strong data-i18n="family.introStudent">Your rope team.</strong> <span data-i18n="family.introStudentBody">Whoever you give a code to sees your numbers — how many tasks, how many minutes, how many days in a row. Never what a task says or what you asked.</span>
+      <strong data-i18n="family.introStudent">Your family circle.</strong> <span data-i18n="family.introStudentBody">Whoever you give a code to sees your numbers — how many tasks, how many minutes, how many days in a row. Never what a task says or what you asked.</span>
     </div>
 
     <!-- Side by side on a wide screen: making a code, and who already holds one. -->
@@ -662,7 +662,7 @@
       <button id="tourReplayBtn" class="btn-secondary tour-replay" type="button" data-i18n="settings.tourBtn">Start</button>
     </div>
     <div class="settings-row" data-icon="speaker">
-      <span><span data-i18n="holds.soundSetting">Sound effects</span><br><small class="settings-note" data-i18n="holds.soundHint">A clink for every hold you earn, and a little fanfare for the big ones.</small></span>
+      <span><span data-i18n="holds.soundSetting">Sound effects</span><br><small class="settings-note" data-i18n="holds.soundHint">A clink for every point you earn, and a little fanfare for the big ones.</small></span>
       <label class="switch"><input id="soundsOn" type="checkbox" role="switch" data-i18n-aria-label="holds.soundSetting" aria-label="Sound effects" checked><span class="switch-track"></span></label>
     </div>
     <div class="settings-row" data-icon="bell">
@@ -734,8 +734,8 @@
         </div>
       </div>
       <div class="nav-group">
-        <button class="nav-link nav-parent nav-crew" data-view="crew"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 20 9 9l3.5 5.5L15 11l6.5 9z"/><path d="M15 11V4.5l3.5 1.2L15 7"/></svg>
-          <span data-i18n="nav.crew">Crew</span>
+        <button class="nav-link nav-parent nav-crew" data-view="crew"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2"/><circle cx="17" cy="9.5" r="2.4"/><path d="M17.2 14.4c2.2.2 3.6 1.7 4 4.2"/></svg>
+          <span data-i18n="nav.crew">Friends</span>
         </button>
       </div>
     </nav>
@@ -933,7 +933,7 @@
   <div class="home-start-row">
     <button type="button" class="home-start-item" data-goto-view="checklist">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><path d="m3 6.5 1.4 1.4L7 5.4"/><path d="m3 12 1.4 1.4L7 10.9"/><path d="m3 17.5 1.4 1.4L7 16.4"/></svg>
-      <span><strong data-i18n="home.startRoute">Write down your homework</strong><span data-i18n="home.startRouteHint">The Route puts the most urgent first.</span></span>
+      <span><strong data-i18n="home.startRoute">Write down your homework</strong><span data-i18n="home.startRouteHint">Homework puts the most urgent first.</span></span>
     </button>
     <button type="button" class="home-start-item" id="homeStartChat">
       <span class="spark climbai-mark" aria-hidden="true"></span>
@@ -941,7 +941,7 @@
     </button>
     <button type="button" class="home-start-item" data-goto-view="focus">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3h11M6.5 21h11"/><path d="M8 3v2.6c0 2 1.6 3.4 4 5.4 2.4-2 4-3.4 4-5.4V3"/><path d="M8 21v-2.6c0-2 1.6-3.4 4-5.4 2.4 2 4 3.4 4 5.4V21"/><path d="M10 19.2h4" stroke-width="2.2"/><path d="M12 11v2.4" stroke-dasharray="0.6 1.6"/></svg>
-      <span><strong data-i18n="home.startFocus">Start a focus session</strong><span data-i18n="home.startFocusHint">Counts your time at the desk. Nothing leaves this device.</span></span>
+      <span><strong data-i18n="home.startFocus">Start a focus session</strong><span data-i18n="home.startFocusHint">Counts your time at the desk. No picture leaves this device.</span></span>
     </button>
   </div>
 </section>
@@ -1253,7 +1253,7 @@
 <main id="view-focus" class="view hidden">
 <header class="page-header">
   <h1 data-i18n="nav.focus">Фокус</h1>
-  <p class="page-subtitle" data-i18n="page.focusSubtitle">Тих брояч на времето, докато учиш. Нищо не напуска твоето устройство.</p>
+  <p class="page-subtitle" data-i18n="page.focusSubtitle">Тих брояч на времето, докато учиш. Нито една снимка не напуска това устройство.</p>
   <button class="help-toggle" type="button" data-help-view="focus" aria-expanded="false" data-i18n-aria="help.aria" aria-label="Как работи този екран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg></button>
 </header>
 
@@ -1380,7 +1380,7 @@
 
 </main>
 
-<!-- Crew: friends on a mountain. crew.js draws everything inside the stage. -->
+<!-- Friends (Crew in the code). crew.js draws everything inside the stage. -->
 <main id="view-crew" class="view hidden">
   <div id="crewStage" class="crew-stage"></div>
 </main>
@@ -1415,8 +1415,10 @@
 <script src="vendor/purify.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <!-- KaTeX оформя математическите формули между $...$ и $$...$$ -->
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
+<!-- KaTeX 0.16.9 ships with the app (vendor/katex): it renders every answer, and a
+     school network that blocks the CDN used to stall the whole page waiting for it. -->
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/auto-render.min.js"></script>
 <!-- face-api.js разпознава дали има лице в кадъра — изцяло в браузъра, снимката никога не напуска устройството -->
 <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
 
@@ -1490,6 +1492,7 @@
 <script src="ai-activity.js"></script>
 <script src="toast.js"></script>
 <script src="net.js"></script>
+<script src="markdown.js"></script>
 <script src="offline.js"></script>
 <script src="theme.js"></script>
 <script src="profile-photo.js"></script>

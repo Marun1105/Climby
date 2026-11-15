@@ -51,7 +51,10 @@ from models import FocusSession, ProblemBrief, ScanHistory, Task, User
 from schemas import image_media_type
 
 app = FastAPI()
-client = Anthropic()  # чете ANTHROPIC_API_KEY от средата
+# The SDK's own defaults are a ten-minute timeout and two retries: a stuck call
+# kept a worker thread (and a database connection) for up to half an hour
+# after the app had given up at three minutes — and was still paid for.
+client = Anthropic(timeout=120.0, max_retries=1)  # чете ANTHROPIC_API_KEY от средата
 # The reader has its own hard stop (relay.READER_TIMEOUT_S), and the SDK's two
 # automatic retries would triple it into a wait the student's app gives up on.
 # One try; on failure the tutor model reads the photos, which is the designed fallback.
@@ -94,6 +97,9 @@ app.include_router(tts.router)
 MAX_BODY_BYTES = 8 * 1024 * 1024
 
 BODY_TOO_LARGE_MESSAGE = "That request is too large."
+BIG_UPLOAD_BYTES = 200 * 1024
+BIG_UPLOADS_PER_HOUR = 400
+TOO_MANY_UPLOADS_MESSAGE = "Too many uploads from this network in a short time. Please wait a little and try again."
 
 
 class _BodyTooLarge(Exception):
@@ -121,6 +127,22 @@ class BodySizeLimitMiddleware:
         if declared and declared.isdigit() and int(declared) > self.max_bytes:
             await self._reject(scope, receive, send)
             return
+
+        # A large upload is parsed and base64-decoded before the handler's own
+        # rate limit is reached, so a loop of big anonymous requests could keep
+        # the server busy without ever touching a limit. This brake comes first
+        # and counts by address. It is generous on purpose — a whole school can
+        # sit behind one address — and only applies to bodies big enough to be
+        # photographs.
+        big = (not declared) or (declared.isdigit() and int(declared) > BIG_UPLOAD_BYTES)
+        if scope.get("method") == "POST" and big:
+            try:
+                rate_limit.enforce(Request(scope), "big-upload", max_calls=BIG_UPLOADS_PER_HOUR,
+                                   window_seconds=3600, message=TOO_MANY_UPLOADS_MESSAGE)
+            except HTTPException as refused:
+                response = JSONResponse({"detail": refused.detail}, status_code=refused.status_code)
+                await response(scope, receive, send)
+                return
 
         seen = 0
         started = False
@@ -168,7 +190,7 @@ app.add_middleware(
     allow_headers=["*"],
     # The export names its file in this header; without exposing it the app
     # cannot read it across origins and falls back to a generic name.
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Climby-Session"],
 )
 
 # "Всички предмети, с малки изключения" — учителят не се ограничава само до математика.
@@ -355,6 +377,11 @@ class Ask(BaseModel):
 RATE_LIMIT_MESSAGE = {
     "bg": "Твърде много опити за кратко време — изчакай малко и опитай пак.",
     "en": "Too many requests in a short time — please wait a bit and try again.",
+}
+
+TUTOR_ERROR_MESSAGE = {
+    "bg": "ClimbAI не успя да отговори този път. Опитай пак след малко.",
+    "en": "ClimbAI couldn't answer this time. Try again in a moment.",
 }
 
 ASK_ERROR_MESSAGE = {
@@ -602,19 +629,19 @@ The screens, from the menu on the left:
   Tasks are ticked off, edited by clicking the text, and a big one can be split into steps by
   you. A deleted task can be undone for a few seconds afterwards.
 - "Done & dusted" — everything already finished, and the questions asked here before.
-- "Crew" — friends on a mountain, placed by the "holds" they earned this week. Holds are
+- "Friends" — your friends, placed by the points they earned this week. Points are
   Climby's currency: +25 for solving a step on your own, +20 for homework done on time (+10
   without a deadline), +5 every 5 minutes of focus, +15 for a day in a row, +10 for taking a
-  suggested break, +5 when a friend cheers you (once a day). A counter beside Crew in the menu
-  climbs as they are earned, with sound effects that can be turned off in Settings → The app. They never buy hints or answers. Set up once with a
-  username and the month and year of birth; under 12 a linked parent allows it in Family.
+  suggested break, +5 when a friend cheers you (once a day). A counter beside Friends in the menu
+  goes up as they are earned, with sound effects that can be turned off in Settings → The app. They never buy hints or answers. Set up once with a
+  username and the month and year of birth; under 14 a linked parent allows it in Family.
   Friends are added by username and both must say yes; a friend studying right now glows
   "LIVE". There is no chat yet. Signed out, the screen shows sample people as a preview.
 
 Always use the current names above: "Homework", "Done & dusted", "Focus mode",
-"Family" and "Class". Earlier versions of the app called them "The Route",
+"Family", "Class", "Friends" and "points". Earlier versions of the app called them "The Route",
 "Summited", "Ascent", "Rope Team" and "Base Camp", and later "Homework HQ",
-"Family progress", "Classroom crew", "Completed work" and "Study timer"; understand those
+"Family progress", "Classroom crew", "Completed work", "Study timer", "Crew" and "holds"; understand those
 if a student uses them, but never use them yourself and never say they exist in the app now.
 
 There is also a chat panel — a small window opened by the round button in the bottom right
@@ -678,19 +705,19 @@ something that does not exist trusts you less about the mathematics too.""",
   отмятат, променят се с натискане върху текста, а голяма задача можеш да разделиш на стъпки.
   Изтрита задача може да се върне няколко секунди след това.
 - „Готово и отметнато" — всичко вече свършено и въпросите, задавани тук преди.
-- „Екипът" — приятели на планина, подредени по „хватките“, спечелени тази седмица.
-  Хватките са валутата на Climby: +25 за сам решена стъпка, +20 за задача навреме (+10 без
+- „Приятели" — приятелите ти, подредени по точките, спечелени тази седмица.
+  Точките са валутата на Climby: +25 за сам решена стъпка, +20 за задача навреме (+10 без
   срок), +5 на всеки 5 минути фокус, +15 за още ден подред, +10 за предложена почивка, +5
-  когато приятел те подкрепи (веднъж на ден). Брояч до Екипа в менюто расте, докато се печелят,
+  когато приятел те подкрепи (веднъж на ден). Брояч до „Приятели“ в менюто расте, докато се печелят,
   със звукови ефекти, които се спират от Настройки → Приложението. Никога не купуват подсказки или отговори. Настройва се веднъж с
-  потребителско име и месец и година на раждане; под 12 години свързан родител го разрешава в
+  потребителско име и месец и година на раждане; под 14 години свързан родител го разрешава в
   Семейство. Приятели се добавят по потребителско име и двамата трябва да кажат „да“; приятел,
   който учи в момента, свети „НА ЖИВО“. Чат още няма. Без вход екранът показва примерни хора.
 
 Винаги използвай сегашните имена по-горе: „Домашни“, „Готово и отметнато“, „Режим
-фокус“, „Семейство“ и „Клас“. Предишни версии на приложението ги наричаха „Маршрут“,
+фокус“, „Семейство“, „Клас“, „Приятели“ и „точки“. Предишни версии на приложението ги наричаха „Маршрут“,
 „Изкачени“, „Възход“, „Свръзка“ и „Базата“, после „Щабът на домашните“, „Семеен напредък“,
-„Нашият клас“, „Домашни задачи“, „Завършени задачи“ и „Таймер за учене“; разбирай ги, ако ученикът ги използва, но
+„Нашият клас“, „Домашни задачи“, „Завършени задачи“, „Таймер за учене“, „Екипът“ и „хватки“; разбирай ги, ако ученикът ги използва, но
 никога не ги употребявай сам и не казвай, че още съществуват в приложението.
 
 Има и панел за разговор — малък прозорец, който се отваря с кръглото копче долу вдясно, на
@@ -1305,7 +1332,7 @@ def _memory_context(db: Session, user: User, lang: str, selection: MemorySelecti
         finished = db.query(Task).filter(
             Task.user_id == user.id, Task.done.is_(True), Task.completed_at >= week_ago).count()
         overdue = db.query(Task).filter(
-            Task.user_id == user.id, Task.done.is_(False), Task.deadline < date.today()).count()
+            Task.user_id == user.id, Task.done.is_(False), Task.deadline < holds.local_date()).count()
         week.append(f"- finished {finished} tasks, {overdue} overdue" if lang == "en"
                     else f"- свършени {finished} задачи, {overdue} просрочени")
     if week:
@@ -1340,6 +1367,10 @@ BRIEF_GONE_MESSAGE = {
 }
 
 GUEST_BRIEF_TTL_HOURS = 24
+# A signed-in student's page is useful while the conversation about it is
+# open. After a month nothing in the app can reach it any more, and it was
+# kept for good — up to 50 KB of a child's homework per page.
+OWNED_BRIEF_TTL_DAYS = 30
 
 
 def _sweep_guest_briefs(db: Session) -> None:
@@ -1362,6 +1393,10 @@ def _sweep_guest_briefs(db: Session) -> None:
         db.query(ProblemBrief).filter(
             ProblemBrief.user_id.is_(None),
             ProblemBrief.created_at < cutoff,
+        ).delete(synchronize_session=False)
+        db.query(ProblemBrief).filter(
+            ProblemBrief.user_id.isnot(None),
+            ProblemBrief.created_at < datetime.now(timezone.utc) - timedelta(days=OWNED_BRIEF_TTL_DAYS),
         ).delete(synchronize_session=False)
         db.commit()
     except Exception as err:  # noqa: BLE001
@@ -1389,6 +1424,7 @@ def _read_pages(db: Session, body: "Ask", user: Optional[User], lang: str):
             "type": "base64", "media_type": _image_media_type(img) or "image/jpeg", "data": img}}
         for img in body.images
     ]
+    db.commit()   # give the connection back before the long wait
     try:
         fields, resp = relay.read_pages(reader_client, image_blocks, body.question, lang,
                                         grade=getattr(user, "grade", None) if user else None)
@@ -1452,10 +1488,16 @@ def memory_preview(body: MemoryPreview, request: Request,
 def ask(
     body: Ask,
     request: Request,
+    response: Response,
     user: Optional[User] = Depends(auth.get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     lang = body.lang if body.lang in SYSTEM else "en"
+    # A token was sent and it is no longer good: the question is still answered
+    # (as a guest), but the app is told, so it can sign the student out instead
+    # of looking signed in while nothing is being saved.
+    if user is None and request.headers.get("authorization", "").startswith("Bearer "):
+        response.headers["X-Climby-Session"] = "expired"
     # /ask е достъпен и за гости (без вход), затова лимитът е по IP, а не по акаунт —
     # пази от неограничени разходи за Anthropic API от един клиент/бот.
     # Разговорът значи повече реплики. С акаунт: 30 на час — един истински урок.
@@ -1516,7 +1558,7 @@ def ask(
         system += SOLVED_MARK[lang]
     offering_tasks = bool(user and (body.context or body.memory is not None) and body.surface == "chat")
     if offering_tasks:
-        today = date.today()
+        today = holds.local_date()
         system += TASK_OFFER[lang].format(
             today=today.isoformat(),
             tomorrow=(today + timedelta(days=1)).isoformat(),
@@ -1524,7 +1566,7 @@ def ask(
         )
     smart = bool(user and body.surface == "chat")
     if smart:
-        today = date.today()
+        today = holds.local_date()
         system += SMART_ACTIONS[lang].format(
             today=today.isoformat(),
             tomorrow=(today + timedelta(days=1)).isoformat(),
@@ -1535,18 +1577,36 @@ def ask(
     system_blocks = [{"type": "text", "text": system[:fixed_len], "cache_control": {"type": "ephemeral"}}]
     if system[fixed_len:].strip():
         system_blocks.append({"type": "text", "text": system[fixed_len:]})
+    # Give the connection back before the long wait: with it held through a
+    # slow model call, a dozen slow questions emptied the pool and login, tasks
+    # and /healthz failed for everyone.
+    db.commit()
     try:
         resp = client.beta.messages.create(
             model=TUTOR_MODEL,
-            max_tokens=2500 if smart else 1500,
+            # Room to finish: an answer cut at the limit reached the student
+            # mid-sentence. Only the tokens actually written are billed.
+            max_tokens=6000 if smart else 4000,
             betas=[relay.ADVISOR_BETA],
-            tools=relay.tutor_tools(),
+            # Web search is for signed-in students: a guest's question would put
+            # whatever a web page says in front of a child with nobody to answer for it,
+            # and it is the costliest part of an anonymous call.
+            tools=relay.tutor_tools(search=user is not None),
             system=system_blocks,
             messages=messages,
         )
     except APIError:
         raise HTTPException(502, ASK_ERROR_MESSAGE[lang])
+    except Exception as err:  # noqa: BLE001 — a timeout, a broken connection: same kind answer
+        print(f"[ask] tutor call failed: {err!r}", flush=True)
+        raise HTTPException(502, TUTOR_ERROR_MESSAGE[lang])
     usage.record(db, resp)
+    # How the answer ended matters: a refusal or an answer with nothing in it
+    # used to go out as HTTP 200 with empty text and was saved to history.
+    stop = getattr(resp, "stop_reason", None)
+    if stop == "refusal" or not relay.answer_text(resp).strip():
+        print(f"[ask] tutor gave no usable answer (stop_reason={stop})", flush=True)
+        raise HTTPException(502, TUTOR_ERROR_MESSAGE[lang])
     # Only what comes after the last tool round-trip: the model sometimes announces
     # the consultation first ("let me consult on the best method"), and that
     # sentence is not for the student.

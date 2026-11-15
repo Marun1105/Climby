@@ -177,3 +177,29 @@ def _signed_in():
     rate_limit._hits.clear()
     res = client.post("/auth/login", json={"email": email, "password": "testpass123"})
     return uid, {"Authorization": f"Bearer {res.json()['token']}"}
+
+
+def test_cached_tokens_are_counted_too():
+    """The fixed system prompt is cached, so most of a question's input arrives
+    as cache tokens. They used to be left out of the day's total entirely."""
+    class U:
+        input_tokens = 100
+        output_tokens = 200
+        cache_creation_input_tokens = 1000
+        cache_read_input_tokens = 5000
+
+    class R:
+        usage = U()
+
+    assert usage.billable_tokens(R()) == 100 + 200 + 1000 + 500
+
+
+def test_an_empty_answer_is_an_error_not_a_blank_reply(monkeypatch):
+    class Empty(_Resp):
+        content = []
+        stop_reason = "max_tokens"
+
+    monkeypatch.setattr(server.client.beta.messages, "create", lambda **kw: Empty())
+    res = client.post("/ask", json={"question": "What is a prime number?", "images": [], "lang": "en"})
+    assert res.status_code == 502
+    assert "ClimbAI" in res.json()["detail"]

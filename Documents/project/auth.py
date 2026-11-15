@@ -295,10 +295,15 @@ def get_current_user_optional(
 TERMS_NEEDED = "Please agree to the Terms and the Privacy policy to continue."
 
 
+REGISTER_PER_HOUR = 40
+
+
 @router.post("/register")
 def register(body: RegisterRequest, request: Request, background: BackgroundTasks,
              db: Session = Depends(get_db)):
-    rate_limit.enforce(request, "register", max_calls=5, window_seconds=3600,
+    # Per address, and a school is one address: five an hour was one desk's
+    # worth of a classroom signing up together.
+    rate_limit.enforce(request, "register", max_calls=REGISTER_PER_HOUR, window_seconds=3600,
                         message="Too many sign-up attempts. Please wait a moment and try again.")
     # Before anything looks at the address, so the answer is the same for a
     # free one and a taken one.
@@ -324,18 +329,50 @@ def register(body: RegisterRequest, request: Request, background: BackgroundTask
     password_hash = security.hash_password(body.password)
     NEUTRAL = {"status": "ok", "message": "We have sent a verification code to your email."}
 
-    if db.query(User).filter(_email_matches(email)).first():
-        background.add_task(email_service.send_account_exists_email, email)
-        return NEUTRAL
+    existing = db.query(User).filter(_email_matches(email)).first()
+    # A row nobody ever verified belongs to whoever proves the address now.
+    # It used to keep the FIRST registrant's password: someone could register a
+    # child's address, never verify, and wait — when the child signed up and
+    # entered the code, the account went live with the stranger's password.
+    stale = existing if existing is not None and not existing.is_email_verified else None
 
-    # Потребителското име не различава главни и малки букви при вход.
-    if body.username and db.query(User).filter(func.lower(User.username) == body.username.lower()).first():
-        raise HTTPException(400, "That username is taken. Please choose another.")
+    # The username and phone checks come BEFORE the address decides anything, so
+    # "taken" is said (or not) the same way whether or not the address has an
+    # account. A stale row's own username is not counted against it.
+    if body.username:
+        q = db.query(User).filter(func.lower(User.username) == body.username.lower())
+        if stale is not None:
+            q = q.filter(User.id != stale.id)
+        if q.first():
+            raise HTTPException(400, "That username is taken. Please choose another.")
     # Само ПОТВЪРДЕН номер заема мястото си. Иначе достатъчно беше някой да се
     # регистрира с чужд номер, без да го потвърждава, за да остане собственикът
     # му отвън завинаги.
-    if phone and _phone_taken(db, phone):
+    if phone and _phone_taken(db, phone, except_user_id=stale.id if stale is not None else None):
         raise HTTPException(400, "That phone number is already verified on another account.")
+
+    if existing is not None and stale is None:
+        background.add_task(email_service.send_account_exists_email, email)
+        return NEUTRAL
+
+    if stale is not None:
+        stale.display_name = body.display_name
+        stale.username = body.username
+        stale.phone = phone
+        stale.is_phone_verified = False
+        stale.role = body.role
+        stale.heard_from = body.heard_from
+        stale.password_hash = password_hash
+        stale.terms_accepted_at = datetime.now(timezone.utc)
+        stale.token_version = (stale.token_version or 0) + 1
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(400, "That username is taken. Please choose another.")
+        code = _issue_code(db, stale, CodePurpose.verify_email)
+        background.add_task(email_service.send_verification_email, stale.email, code)
+        return NEUTRAL
 
     user = User(
         display_name=body.display_name,
@@ -618,6 +655,11 @@ def reset_password(body: ResetPasswordRequest, request: Request, db: Session = D
         raise HTTPException(400, BAD_CODE)
 
     user.password_hash = security.hash_password(body.new_password)
+    # A code that arrived by email proves the mailbox, which is all that
+    # verifying the address ever meant. Without this, someone who reset the
+    # password of a never-verified account was then refused at login.
+    if body.channel == "email":
+        user.is_email_verified = True
     # Смяната на паролата прекратява и всички стари сесии. Ако някой е влязъл с
     # открадната или просто забравена отворена сесия, тя спира да важи още тук,
     # а не след тридесет дни.

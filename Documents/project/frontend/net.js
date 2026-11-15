@@ -145,5 +145,30 @@ const Net = (() => {
     }
   }
 
-  return { fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
+  // What the server accepts as conversation history: at most 12 turns, each at
+  // most 4000 characters (server.py, AskRequest). A longer thread or one long
+  // answer used to make every later question fail with a validation error.
+  const HISTORY_TURNS = 12;
+  const HISTORY_CHARS = 4000;
+  function trimHistory(turns) {
+    return (turns || []).slice(-HISTORY_TURNS)
+      .map(h => ({ role: h.role, text: String(h.text || '').slice(0, HISTORY_CHARS) }))
+      .filter(h => h.text);
+  }
+
+  // /ask answers guests too, so a token that has expired does not fail — the
+  // student just silently became a guest. The server marks such an answer;
+  // sign out properly and say so.
+  function noteSession(res) {
+    try {
+      if (res && res.headers.get('X-Climby-Session') === 'expired' && window.Auth && Auth.isLoggedIn()) {
+        Auth.logout(false);
+        if (window.Toast && window.t) Toast.show(window.t('checklist.errSession'));
+      }
+    } catch { /* a header we cannot read changes nothing */ }
+  }
+
+  return {
+    trimHistory,
+    noteSession, fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
 })();

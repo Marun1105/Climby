@@ -43,15 +43,30 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# A day is a day where the students are, not in UTC: the parent view already
+# counts in Sofia time, so a session at 01:00 kept the parent's streak and
+# broke this one, and the daily caps reset at two or three in the morning.
+try:
+    from zoneinfo import ZoneInfo
+    APP_TZ = ZoneInfo("Europe/Sofia")
+except Exception:  # no tz database on this machine
+    APP_TZ = timezone(timedelta(hours=2))
+
+
+def local_date(at: datetime = None) -> date:
+    return _as_utc(at or _now()).astimezone(APP_TZ).date()
+
+
 def day_start(at: datetime = None) -> datetime:
-    at = at or _now()
-    return at.replace(hour=0, minute=0, second=0, microsecond=0)
+    """Local midnight of that day, as a UTC moment."""
+    local = _as_utc(at or _now()).astimezone(APP_TZ)
+    return local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
 
 
 def week_start(at: datetime = None) -> datetime:
-    """Monday 00:00 UTC: the week a group compares."""
+    """Monday 00:00 local time: the week a group compares."""
     start = day_start(at)
-    return start - timedelta(days=start.weekday())
+    return start - timedelta(days=local_date(at).weekday())
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -96,7 +111,7 @@ def _streak(db: Session, user_id: str) -> None:
         HoldEntry.user_id == user_id, HoldEntry.reason.in_(OWN_REASONS),
         HoldEntry.created_at >= yesterday, HoldEntry.created_at < today).first()
     if had_yesterday:
-        award(db, user_id, "streak", today.date().isoformat(), STREAK_DAY)
+        award(db, user_id, "streak", local_date().isoformat(), STREAK_DAY)
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +147,7 @@ def on_task_done(db: Session, user_id: str, task) -> int:
     if left <= 0:
         return 0
     if task.deadline:
-        if _as_utc(task.completed_at).date() > task.deadline:
+        if local_date(task.completed_at) > task.deadline:
             return 0
         return award(db, user_id, "on_time", task.id, min(ON_TIME, left))
     return award(db, user_id, "task", task.id, min(TASK_DONE, left))
@@ -167,14 +182,14 @@ def on_break(db: Session, user_id: str) -> int:
         HoldEntry.created_at >= day_start()).scalar() or 0
     if taken >= BREAKS_DAILY_CAP:
         return 0
-    return award(db, user_id, "break", f"{day_start().date().isoformat()}#{taken + 1}", BREAK)
+    return award(db, user_id, "break", f"{local_date().isoformat()}#{taken + 1}", BREAK)
 
 
 def on_cheer(db: Session, from_id: str, to_id: str) -> int:
     """Once a day per friend: the ref is who cheered, and on which day."""
     if CHEERS_DAILY_CAP - _earned_today(db, to_id, ("cheer",)) < CHEER:
         return 0
-    return award(db, to_id, "cheer", f"{from_id}:{day_start().date().isoformat()}", CHEER)
+    return award(db, to_id, "cheer", f"{from_id}:{local_date().isoformat()}", CHEER)
 
 
 # ---------------------------------------------------------------------------
@@ -199,13 +214,16 @@ def totals(db: Session, user_ids) -> dict:
     since = day_start() - timedelta(days=366)
     days = {i: set() for i in ids}
     # one row per person and day, not every hold of the year
-    for uid, at in (db.query(HoldEntry.user_id, func.min(HoldEntry.created_at))
+    for uid, at, last in (db.query(HoldEntry.user_id, func.min(HoldEntry.created_at), func.max(HoldEntry.created_at))
                     .filter(HoldEntry.user_id.in_(ids), HoldEntry.reason.in_(OWN_REASONS),
                             HoldEntry.created_at >= since)
                     .group_by(HoldEntry.user_id, func.date(HoldEntry.created_at))):
-        if at is not None:
-            days[uid].add(_as_utc(at).date())
-    today = _now().date()
+        # the database groups by its own (UTC) date; the first and last moment
+        # of each group give the local days it touches
+        for moment in (at, last):
+            if moment is not None:
+                days[uid].add(local_date(moment))
+    today = local_date()
     for uid, seen in days.items():
         d = today if today in seen else today - timedelta(days=1)
         n = 0

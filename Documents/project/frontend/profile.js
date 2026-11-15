@@ -20,7 +20,15 @@ const Profile = (() => {
   function needsAsking(u) {
     if (!u) return false;
     if (isStudent() && u.grade == null) return true;
+    // "Where did you hear of us" is optional: once the form has been saved
+    // without it, do not open it again on every launch.
+    if (answered(u)) return false;
     return u.heard_from == null;
+  }
+
+  const ANSWERED_KEY = 'climby-quiz-answered:';
+  function answered(u) {
+    try { return localStorage.getItem(ANSWERED_KEY + u.id) === '1'; } catch { return false; }
   }
 
   function snoozed() {
@@ -69,7 +77,7 @@ const Profile = (() => {
     const data = res ? await res.json().catch(() => ({})) : {};
     if (!res || !res.ok) { say((data && data.detail) || t('account.errGeneric')); return; }
     Auth.updateUser(data);
-    try { localStorage.removeItem(LATER_KEY); } catch {}
+    try { localStorage.removeItem(LATER_KEY); const u = user(); if (u && u.id) localStorage.setItem(ANSWERED_KEY + u.id, '1'); } catch {}
     close();
     summary();
   }

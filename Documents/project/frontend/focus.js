@@ -4,7 +4,7 @@
 const Focus = (() => {
   const $ = id => document.getElementById(id);
   const BACKEND = window.CLIMBY_BACKEND;
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
   const ENABLED_KEY = 'climby-focus-enabled';
   const IDENTITY_DISTANCE = FaceVerification.DEFAULT_THRESHOLD;
   const ENROLL_SAMPLES = 3;
@@ -30,6 +30,22 @@ const Focus = (() => {
   };
 
   let sessionStart = null;
+  // Time the computer spent asleep (lid closed) is not study time. A beat every
+  // 15 s notices a gap; anything over two minutes is taken off the session.
+  let sleepPauseMs = 0;
+  let lastBeat = null;
+  let beatTimer = null;
+  const SLEEP_GAP_MS = 120000;
+  function beat() {
+    const now = Date.now();
+    if (lastBeat !== null && now - lastBeat > SLEEP_GAP_MS
+        && verificationPausedAt === null && breakStartedAt === null) {
+      sleepPauseMs += now - lastBeat;
+    }
+    lastBeat = now;
+  }
+  function startBeat() { stopBeat(); sleepPauseMs = 0; lastBeat = Date.now(); beatTimer = setInterval(beat, 15000); }
+  function stopBeat() { if (beatTimer) clearInterval(beatTimer); beatTimer = null; lastBeat = null; }
   let verificationPausedAt = null;
   let verificationPauseMs = 0;
   // A break the student chose (breaks.js): the clock stops, nothing is counted
@@ -115,11 +131,16 @@ const Focus = (() => {
     if (!el) return;
     if (!window.Auth || !Auth.isLoggedIn()) { el.classList.add('hidden'); return; }
     try {
-      const res = await Net.fetch(BACKEND + '/focus', {
+      // /activity, not /focus: /focus returns the last 30 sessions only, which
+      // capped the streak at about ten days for someone studying three times a day.
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const res = await Net.fetch(BACKEND + '/activity?today=' + today, {
         headers: { Authorization: `Bearer ${Auth.getToken()}` },
       });
       if (!res.ok) throw new Error('bad status');
-      const sessions = await res.json();
+      const data = await res.json();
+      const sessions = (data.events || []).filter(e => e.kind === 'session').map(e => ({ created_at: e.at }));
       if (!sessions.length) { el.classList.add('hidden'); return; }
       const streak = computeStreak(sessions);
       const label = streak > 0
@@ -140,18 +161,25 @@ const Focus = (() => {
     }
   }
 
-  async function saveSession(totalMs) {
+  // closing: the window is going away, so the request must outlive the page
+  // (keepalive) and nothing waits for the answer.
+  async function saveSession(totalMs, closing) {
     if (!window.Auth || !Auth.isLoggedIn()) return;
     const durationSeconds = Math.round(totalMs / 1000);
     if (durationSeconds < 60) return; // твърде кратка сесия, за да си струва да се пази
     const trackedMs = focusedMs + awayMs;
     const focusPct = trackedMs ? Math.round((focusedMs / trackedMs) * 100) : null;
+    const request = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Auth.getToken()}` },
+      body: JSON.stringify({ duration_seconds: durationSeconds, focus_pct: focusPct }),
+    };
+    if (closing) {
+      try { fetch(BACKEND + '/focus', { ...request, keepalive: true }).catch(() => {}); } catch { /* nothing to do on the way out */ }
+      return;
+    }
     try {
-      await Net.fetch(BACKEND + '/focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Auth.getToken()}` },
-        body: JSON.stringify({ duration_seconds: durationSeconds, focus_pct: focusPct }),
-      });
+      await Net.fetch(BACKEND + '/focus', request);
       window.dispatchEvent(new CustomEvent('climby:activity'));
     } catch {
       // статистиката не е критична — сесията вече приключи за ученика, независимо дали се е записала
@@ -483,6 +511,7 @@ const Focus = (() => {
     starting = false;
     $('focusVideo').srcObject = stream;
     sessionStart = Date.now();
+    startBeat();
     verificationPauseMs = 0;
     breakStartedAt = null;
     breakPauseMs = 0;
@@ -1076,7 +1105,8 @@ const Focus = (() => {
 
   function activeSessionMs() {
     if (!sessionStart) return 0;
-    const pauseMs = verificationPauseMs +
+    beat();
+    const pauseMs = sleepPauseMs + verificationPauseMs +
       (verificationPausedAt === null ? 0 : Date.now() - verificationPausedAt) +
       breakPauseMs + (breakStartedAt === null ? 0 : Date.now() - breakStartedAt);
     return Math.max(0, Date.now() - sessionStart - pauseMs);
@@ -1191,7 +1221,7 @@ const Focus = (() => {
     return true;
   }
 
-  function stopSession(silent) {
+  function stopSession(silent, closing) {
     endBreak();   // a break that is still running is not study time
     const totalMs = activeSessionMs();
     startId++;   // ако точно сега се отваря камера, тя вече е ненужна
@@ -1213,6 +1243,7 @@ const Focus = (() => {
       return;
     }
     sessionStart = null;
+    stopBeat();
     clearIdentity();
     verificationPauseMs = 0;
     breakStartedAt = null;
@@ -1221,6 +1252,8 @@ const Focus = (() => {
     document.body.classList.remove('focus-live');
     window.dispatchEvent(new CustomEvent('climby:focus-live'));
     if (silent) {
+      // Closing the window ends the session; it does not throw it away.
+      if (closing) saveSession(totalMs, true);
       showStage('Idle');
     } else {
       saveSession(totalMs);
@@ -1305,7 +1338,7 @@ const Focus = (() => {
     }
     // Затваряне на таба е същото като излизане — иначе камерата остава заета,
     // докато браузърът не реши да освободи страницата.
-    window.addEventListener('pagehide', () => { if (sessionLive()) stopSession(true); });
+    window.addEventListener('pagehide', () => { if (sessionLive()) stopSession(true, true); });
 
     updateToggleUI();
     // climby:view-shown се обажда чак при натискане на връзка в менюто, а

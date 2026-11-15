@@ -1,8 +1,8 @@
-// crew.js — the Crew screen: you and your friends on one mountain.
+// crew.js — the Friends screen (called Crew in the code): you and your friends.
 //
-// Everyone stands on the trail at the height of the holds they earned this
-// week; whoever is studying right now glows. Holds are the currency (the grips
-// on a climbing wall): earned by studying, spent later on the mountain itself.
+// Everyone sits on the dotted line at the height of the points they earned
+// this week; whoever is studying right now glows. Points (holds in the code)
+// are earned by studying and never buy answers.
 //
 // Signed in, it is the real thing (crew.py): your friends, your holds, who is
 // studying right now. Signed out, the same screen shows made-up people and
@@ -16,7 +16,7 @@ const Crew = (() => {
   };
 
   // ---------------------------------------------------------------- holds
-  // Climbing holds: round, lumpy, bright, each with its bolt hole.
+  // Points (called holds in the code): round, lumpy, bright blobs.
   const HOLD_SHAPES = [
     'M16 3c6 0 12 4 13 10 1 7-4 15-12 16-8 1-14-4-14-11C3 10 9 3 16 3z',
     'M6 9c3-5 11-7 17-4s7 11 4 16-10 9-16 6S3 14 6 9z',
@@ -31,8 +31,6 @@ const Crew = (() => {
     return `<svg class="crew-hold" viewBox="0 0 32 32" aria-hidden="true">
       <path d="${shape}" fill="${c}"/>
       <path d="${shape}" fill="url(#crewHoldShine)" opacity=".55"/>
-      <circle cx="16" cy="16" r="3.2" fill="rgba(0,0,0,.35)"/>
-      <circle cx="16" cy="16" r="1.6" fill="rgba(255,255,255,.55)"/>
     </svg>`;
   }
 
@@ -157,30 +155,9 @@ const Crew = (() => {
   }
 
   // ---------------------------------------------------------------- the ground
-  // One coordinate frame, 1000 × 700, stretched to the screen: the ridge, the
-  // trail and the bubbles all live in it, so a bubble always sits on the trail.
+  // One coordinate frame, 1000 × 700, stretched to the screen: the dotted
+  // line and the bubbles all live in it, so a bubble always sits on the line.
   const TRAIL = 'M150 560 C260 530 380 560 460 525 S640 495 615 445 S470 410 505 370 S650 335 628 290 S548 230 592 192 S636 138 642 112';
-  const RIDGE_FAR = 'M0 430 L120 330 L230 380 L380 230 L500 300 L640 170 L770 270 L880 200 L1000 300 L1000 700 L0 700Z';
-  const RIDGE_MID = 'M0 600 L130 520 L250 560 L400 420 L480 450 L560 260 L642 96 L720 230 L800 300 L900 280 L1000 380 L1000 700 L0 700Z';
-  const SNOW = 'M642 96 L606 168 L626 160 L642 178 L660 158 L684 172 Z';
-
-  function topo() {
-    // contour lines around the summit, a little wobbly, like a map
-    const paths = [];
-    for (let k = 1; k <= 13; k++) {
-      const r = k * 62;
-      let d = '';
-      for (let i = 0; i <= 72; i++) {
-        const a = (i / 72) * Math.PI * 2;
-        const w = 1 + 0.09 * Math.sin(3 * a + k * 0.7) + 0.05 * Math.sin(5 * a - k);
-        const x = 640 + Math.cos(a) * r * w * 1.25;
-        const y = 150 + Math.sin(a) * r * w * 0.8;
-        d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
-      }
-      paths.push(`<path d="${d}Z"/>`);
-    }
-    return paths.join('');
-  }
 
   function build() {
     const root = $('crewStage');
@@ -188,19 +165,10 @@ const Crew = (() => {
       <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
         <radialGradient id="crewHoldShine" cx="35%" cy="28%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></radialGradient>
       </defs></svg>
-      <div class="crew-layer crew-topo" data-depth="4"><svg viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">${topo()}</svg></div>
-      <div class="crew-layer" data-depth="-10"><svg viewBox="0 0 1000 700" preserveAspectRatio="none"><path class="crew-ridge-far" d="${RIDGE_FAR}"/></svg></div>
       <div class="crew-layer crew-world" data-depth="-20">
         <div class="crew-trail"><svg viewBox="0 0 1000 700" preserveAspectRatio="none">
-          <path class="crew-ridge-mid" d="${RIDGE_MID}"/>
-          <path class="crew-snow" d="${SNOW}"/>
           <path class="crew-trail-glow" d="${TRAIL}"/>
           <path id="crewTrailPath" class="crew-trail-line" d="${TRAIL}"/>
-        </svg></div>
-        <div class="crew-flag" style="left:64.2%;top:15.7%"><svg viewBox="0 0 44 54" aria-hidden="true">
-          <rect x="4" y="4" width="3" height="48" rx="1.5" fill="#fff"/>
-          <path class="crew-flag-cloth" d="M7 6 C18 2 26 12 40 7 L40 25 C26 30 18 20 7 24Z" fill="url(#crewFlagGrad)"/>
-          <defs><linearGradient id="crewFlagGrad" x1="0" x2="1"><stop offset="0" stop-color="#f472b6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
         </svg></div>
         <div id="crewBubbles" class="crew-bubbles"></div>
       </div>
@@ -677,7 +645,9 @@ const Crew = (() => {
     async function decline(b) {
       const name = b.dataset.decline;
       b.disabled = true;
-      await api('/crew/requests/decline', { method: 'POST', body: JSON.stringify({ username: name }) });
+      const r = await api('/crew/requests/decline', { method: 'POST', body: JSON.stringify({ username: name }) });
+      // a decline that did not reach the server must not look done
+      if (!r.ok) { say(card, detail(r)); b.disabled = false; return; }
       data.incoming = data.incoming.filter(p => p.username !== name);
       draw();
       load();
@@ -871,7 +841,11 @@ const Crew = (() => {
   let liveTimer = 0;
   function focusLive() {
     const running = !!(window.Focus && Focus.isRunning && Focus.isRunning());
-    if (!window.Auth || !Auth.isLoggedIn()) return;
+    if (!window.Auth || !Auth.isLoggedIn()) {
+      // signed out mid-session: stop the heartbeat instead of leaving it running
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = 0; }
+      return;
+    }
     if (running && !liveTimer) {
       api('/crew/live', { method: 'POST', body: JSON.stringify({ on: true }) });
       liveTimer = setInterval(() => {

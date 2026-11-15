@@ -31,6 +31,17 @@ def _clear_rate_limits():
     rate_limit._hits.clear()
 
 
+def _made_hours_ago(email, hours=6):
+    """A session cannot be longer than the account is old (focus_sessions.py)."""
+    from datetime import datetime, timedelta, timezone
+    from db import SessionLocal
+    from models import User
+    db = SessionLocal()
+    db.query(User).filter(User.email == email).update(
+        {User.created_at: datetime.now(timezone.utc) - timedelta(hours=hours)})
+    db.commit(); db.close()
+
+
 def _register_and_login(email="smoke@example.com", password="testpass123", role=None, phone_verified=True):
     client.post("/auth/register", json={"accept_terms": True, 
         "display_name": "Smoke", "email": email,
@@ -114,6 +125,7 @@ def test_protected_endpoints_require_auth():
 
 def test_focus_session_roundtrip_and_short_filter():
     headers = _register_and_login("focus@example.com")
+    _made_hours_ago("focus@example.com")
     assert client.post("/focus", json={"duration_seconds": 1500, "focus_pct": 80}, headers=headers).status_code == 200
     # под минута не бива да влиза в статистиката
     assert client.post("/focus", json={"duration_seconds": 20}, headers=headers).status_code == 200
@@ -352,7 +364,9 @@ def test_split_rejects_empty_text():
     assert client.post("/plan/split", json={"text": "   ", "lang": "bg"}).status_code == 400
 
 
-def test_register_is_rate_limited():
+def test_register_is_rate_limited(monkeypatch):
+    import auth
+    monkeypatch.setattr(auth, "REGISTER_PER_HOUR", 5)
     for i in range(5):
         res = client.post("/auth/register", json={"accept_terms": True, 
             "display_name": f"RL{i}", "email": f"rl{i}@example.com",
@@ -382,6 +396,7 @@ def test_rate_limiter_ignores_spoofed_forwarded_for(monkeypatch):
 def test_family_invite_link_and_progress():
     student = _register_and_login("kid@example.com")
     parent = _register_and_login("mum@example.com", role="parent")
+    _made_hours_ago("kid@example.com")
 
     # ученикът има малко активност, за да има какво да види родителят
     t1 = client.post("/tasks", json={"text": "Готова задача"}, headers=student).json()
@@ -626,3 +641,12 @@ def test_full_solutions_mode_changes_the_prompt_not_the_teaching():
         assert "step" in server.FULL_SOLUTIONS[lang].lower() or "стъпка" in server.FULL_SOLUTIONS[lang]
     res = client.post("/ask", json={"images": [], "question": "q", "history": [], "mode": "sideways"})
     assert res.status_code == 422, "only the two modes exist"
+
+
+def test_a_session_cannot_be_longer_than_the_time_that_passed():
+    """The minutes a parent sees come from this number. A request made by hand
+    used to be able to claim a whole day from an account made a minute ago."""
+    headers = _register_and_login("too-long@example.com")
+    assert client.post("/focus", json={"duration_seconds": 80000}, headers=headers).status_code == 200
+    listed = client.get("/focus", headers=headers).json()
+    assert listed and listed[0]["duration_seconds"] <= 200

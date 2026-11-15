@@ -821,3 +821,42 @@ def test_a_code_never_appears_in_an_email_subject():
     # и все пак кодът трябва да е В писмото, инак то е безполезно
     assert "A7K3Q" in sent[0][1] and "A7K3Q" in sent[0][2]
     assert "M4P2R" in sent[1][1] and "M4P2R" in sent[1][2]
+
+
+def test_registering_over_an_unverified_account_replaces_its_password(codes):
+    """Someone registers a child's address with their own password and never
+    verifies. When the child signs up later and verifies, the account must
+    open with the CHILD's password, not the stranger's."""
+    email = "takeover-kid@example.com"
+    assert _register(email, "stranger-pass-1").status_code == 200
+    assert _register(email, "child-pass-2").status_code == 200
+    assert client.post("/auth/verify-email", json={"email": email, "code": codes[-1]}).status_code == 200
+    assert _login(email, "stranger-pass-1").status_code == 401
+    assert _login(email, "child-pass-2").status_code == 200
+
+
+def test_a_taken_username_is_refused_whether_or_not_the_address_has_an_account():
+    """The username check used to run only for a free address, so the answer
+    told which addresses had accounts."""
+    _account("name-owner@example.com", username="taken.name")
+    _account("name-other@example.com")
+    taken = _register("name-other@example.com", username="taken.name")
+    free = _register("name-free@example.com", username="taken.name")
+    assert taken.status_code == free.status_code == 400
+
+
+def test_names_that_sound_like_climby_cannot_be_registered():
+    assert _register("reserved-name@example.com", username="Support").status_code == 422
+    assert _register("reserved-name@example.com", username="moderator").status_code == 422
+
+
+def test_resetting_by_email_verifies_the_address(codes):
+    """The code came to the mailbox; that is the proof. The account used to be
+    left unverified and login refused it right after a successful reset."""
+    email = "reset-verifies@example.com"
+    assert _register(email).status_code == 200
+    assert client.post("/auth/forgot-password", json={"channel": "email", "contact": email}).status_code == 200
+    res = client.post("/auth/reset-password", json={
+        "channel": "email", "contact": email, "code": codes[-1], "new_password": "brand-new-pass-1"})
+    assert res.status_code == 200, res.text
+    assert _login(email, "brand-new-pass-1").status_code == 200

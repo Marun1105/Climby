@@ -32,8 +32,31 @@ const Copy = (() => {
       .join('\n');
   }
 
+  // The desktop app refuses the clipboard permission (only the camera is
+  // allowed there), so the modern call can fail silently — the button did
+  // nothing. The old way needs no permission; classes.js already relies on it.
+  async function write(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+    } catch { /* fall through to the old way */ }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (!ok) throw new Error('copy refused');
+  }
+
   function attach(el) {
-    if (!el || !navigator.clipboard || el.querySelector('.copy-btn')) return;
+    if (!el || el.querySelector('.copy-btn')) return;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'copy-btn';
@@ -41,7 +64,7 @@ const Copy = (() => {
     b.innerHTML = ICON;
     b.addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText(textOf(el));
+        await write(textOf(el));
         b.innerHTML = DONE;
         b.classList.add('is-done');
         b.setAttribute('aria-label', window.t ? t('answer.copied') : 'Copied');

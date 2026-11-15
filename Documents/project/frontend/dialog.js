@@ -116,7 +116,8 @@ window.InlineConfirm = (() => {
       no.type = 'button';
       yes.addEventListener('click', () => Net.guardClick(yes, onYes));
       no.addEventListener('click', close);
-      bar.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+      // stopPropagation: Escape here closes this question, not all of Settings behind it
+      bar.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
       actions.append(no, yes);
       bar.append(text, actions);
       anchor.insertAdjacentElement('afterend', bar);

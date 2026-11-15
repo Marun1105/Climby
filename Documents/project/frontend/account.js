@@ -140,7 +140,7 @@ const Account = (() => {
     const body = { password: $('accountDeletePw').value || null, confirm: $('accountDeleteWord').value || null };
     const res = await call('/account', { method: 'DELETE', body: JSON.stringify(body) }).catch(() => null);
     const data = res ? await res.json().catch(() => ({})) : {};
-    if (!res || !res.ok) { say(msg, (data && data.detail) || t('account.errGeneric'), true); return; }
+    if (!res || !res.ok) { say(msg, (data && typeof data.detail === 'string' && data.detail) || t('account.errGeneric'), true); return; }
     // Gone — and so is what this device kept for it: the photo, the memory
     // switch and note, the chats. The screen said "for good".
     const id = (Auth.getUser() || {}).id;

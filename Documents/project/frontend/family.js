@@ -132,6 +132,17 @@ const Family = (() => {
     parentsSeq++;
     $('familyStudents').innerHTML = '';
     $('familyParents').innerHTML = '';
+    // The previous account's invite code and phone step stayed on screen for
+    // whoever signed in next on the same computer.
+    const code = $('familyInviteCode');
+    code.textContent = '';
+    code.classList.add('hidden');
+    $('familyPhoneBox').classList.add('hidden');
+    $('familyPhoneForm').classList.remove('hidden');
+    $('familyPhoneCodeForm').classList.add('hidden');
+    $('familyPhoneInput').value = '';
+    $('familyPhoneCode').value = '';
+    $('familyPhoneMsg').classList.add('hidden');
   }
 
   async function renderStudents() {

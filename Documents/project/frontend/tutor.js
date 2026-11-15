@@ -20,6 +20,10 @@ const Tutor = (() => {
   // Cleared when new pages are photographed — a new page is a new conversation.
   let history = [];
   let busy = false;
+  // Bumped whenever the thread starts over (new pages, a new first question).
+  // An answer that arrives for an older thread is dropped, not drawn under
+  // the new page.
+  let epoch = 0;
   // The page as the server read it. Null when the read failed (or the server is
   // older than the relay): then the photographs go with every turn, as before.
   let briefId = null;
@@ -35,6 +39,9 @@ const Tutor = (() => {
   }
 
   function resetThread() {
+    epoch++;
+    busy = false;
+    clearSteps();
     history = [];
     briefId = null;
     hideRead();
@@ -48,8 +55,9 @@ const Tutor = (() => {
   // Markdown + LaTeX into `el`, after `prefix`. The AI's text is untrusted:
   // no DOMPurify, no HTML.
   function renderMarkdown(text, el, prefix = '') {
-    if (window.marked && window.DOMPurify) {
-      el.innerHTML = prefix + DOMPurify.sanitize(marked.parse(text));
+    const html = window.Md ? Md.toHtml(text) : null;
+    if (html !== null) {
+      el.innerHTML = prefix + html;
     } else {
       el.innerHTML = prefix;
       const plain = document.createElement('div');
@@ -205,7 +213,7 @@ const Tutor = (() => {
       body: JSON.stringify({
         images: withPages ? scannedImages : [],
         brief_id: withPages ? null : briefId,
-        question, lang: I18n.get(), history,
+        question, lang: I18n.get(), history: Net.trimHistory(history),
         mode: window.Prefs ? Prefs.get('tutor') : 'hints',
         surface: 'tutor',
         memory: token && window.Memory ? Memory.request() : null,
@@ -215,6 +223,7 @@ const Tutor = (() => {
 
   async function send(question, target) {
     busy = true;
+    const asked = epoch;
     const first = !history.length;
     if (first) showReading(target); else showThinking(target);
     target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -227,6 +236,7 @@ const Tutor = (() => {
         res = await post(question, true);
       }
       const data = await res.json().catch(() => ({}));
+      if (asked !== epoch) return false;
       clearSteps();
       target.classList.remove('thinking', 'reading');
       if (!res.ok) {
@@ -248,15 +258,20 @@ const Tutor = (() => {
       AIActivity.sign(target, took);
       history.push({ role: 'user', text: question }, { role: 'assistant', text: data.answer });
       $('followUp').classList.remove('hidden');
+      Net.noteSession(res);
       return true;
     } catch (err) {
+      if (asked !== epoch) return false;
       // An abort is the time limit, not the network: "check your internet" to
       // someone whose internet is fine sends them looking in the wrong place.
       showError(target, t(err && err.name === 'AbortError' ? 'scanner.errSlow' : 'scanner.errOffline'));
       return false;
     } finally {
-      clearSteps();
-      busy = false;
+      // A stale request leaves the new thread's state alone.
+      if (asked === epoch) {
+        clearSteps();
+        busy = false;
+      }
     }
   }
 
@@ -266,6 +281,7 @@ const Tutor = (() => {
     // The first question starts the conversation over: the pages are the same,
     // but a new opening question is a new thread — and it is read again, since
     // the reading is scoped to the problem asked about.
+    epoch++;
     history = [];
     briefId = null;
     hideRead();

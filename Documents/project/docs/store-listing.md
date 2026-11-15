@@ -23,7 +23,7 @@ Answer *no* to everything except where noted. The honest answers give a
 
 - Violence, fear, sexual content, drugs, gambling, bad language: **no**
 - Does the app allow users to interact or exchange content with each other?
-  **Yes.** Crew lets students find each other by username, send and accept
+  **Yes.** Friends lets students find each other by username, send and accept
   friend requests, send cheers, and see a friend's profile photo, grade and
   whether they are studying. There is no free-text messaging. Students under
   14 need a linked parent's approval; anyone can be blocked. (Parents and
@@ -90,7 +90,7 @@ Climby помага на ученици от 1-ви до 12-ти клас да �
 
 Снимаш задача от учебника — с камерата на лаптопа, с телефона си или от изпитен вариант от предишни години — и ClimbAI я разглежда с теб. По подразбиране дава подсказка и чака да опиташ следващата стъпка; пълното решение показва само когато го поискаш. Точно това е идеята: ученик, на когото дадеш отговора, не научава нищо, а ученик, на когото покажеш следващата стъпка, се научава да намира останалите.
 
-Около учителя има маршрут за домашните (днешните задачи, най-спешното най-отгоре, с AI планер, който ги подрежда), тих брояч на времето за учене и история на всичко, което си свършил и питал. Чат е на един клик от всеки екран, за въпроси без снимка. Отговорите могат да се четат на глас за най-малките.
+Около учителя има списък с домашните (днешните задачи, най-спешното най-отгоре, с AI планер, който ги подрежда), тих брояч на времето за учене и история на всичко, което си свършил и питал. Чат е на един клик от всеки екран, за въпроси без снимка. Отговорите могат да се четат на глас за най-малките.
 
 Родители и учители се свързват с код. Те виждат числа — колко задачи, колко минути, колко дни поред — и никога текста на задача или въпрос. Ученик, който знае, че всеки негов въпрос се чете, спира да пита честно.
 
@@ -107,9 +107,9 @@ Ten allowed; five is enough. In this order, dark theme, English:
 
 1. ClimbAI with a real answer on screen (the hint, not the full solution)
 2. The chat, mid-conversation
-3. The Route with three tasks and the planner's advice
-4. Summited with a few finished items
-5. Rope Team as a parent sees it — the numbers
+3. Homework with three tasks and the planner's advice
+4. Done & dusted with a few finished items
+5. Family as a parent sees it — the numbers
 
 Do not use the empty-state screens; a store page full of "nothing here yet"
 sells nothing.
