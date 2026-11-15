@@ -47,7 +47,7 @@ MIN_AGE, MAX_AGE = 6, 20
 LIVE_FOR = timedelta(minutes=3)          # one missed heartbeat is not the end of a session
 MAX_AVATAR_BYTES = 120_000               # the editor saves 256 px JPEG, about 20 KB
 USERNAME = re.compile(r"^[a-z0-9](?:[a-z0-9._]{1,18})[a-z0-9]$")
-RESERVED = {"admin", "climby", "climbai", "support", "help", "moderator", "official", "system"}
+from schemas import RESERVED_USERNAMES as RESERVED  # one list, shared with sign-up
 MAX_FRIENDS = 200
 
 
@@ -62,7 +62,7 @@ def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
 
 
 def age_of(profile: SocialProfile, today: Optional[date] = None) -> int:
-    today = today or date.today()
+    today = today or holds.local_date()
     return today.year - profile.birth_year - (1 if today.month < profile.birth_month else 0)
 
 

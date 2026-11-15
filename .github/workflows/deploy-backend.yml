@@ -33,8 +33,35 @@ on:
       - '!Documents/project/**.md'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+# Two pushes in a row: the later one is the one that should deploy.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
 jobs:
+  # Nothing used to run the tests before production got the code, and
+  # migrations run at start-up against the live database. The deploy now waits
+  # for the suite.
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Documents/project
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: Documents/project/.python-version
+          cache: pip
+          cache-dependency-path: Documents/project/requirements*.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Ask Render to deploy the latest commit
@@ -45,6 +72,6 @@ jobs:
             echo "::error::RENDER_DEPLOY_HOOK secret is not set — see the comment at the top of this workflow"
             exit 1
           fi
-          code=$(curl -s -o body.txt -w '%{http_code}' -X POST "$HOOK")
+          code=$(curl -s --max-time 60 -o body.txt -w '%{http_code}' -X POST "$HOOK")
           echo "Render answered HTTP $code"; cat body.txt; echo
           [ "$code" = "200" ] || [ "$code" = "201" ]

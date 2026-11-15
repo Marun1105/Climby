@@ -97,6 +97,27 @@ def check(db: Session, lang: str = "en") -> None:
         raise HTTPException(503, CAP_MESSAGE.get(lang, CAP_MESSAGE["en"]))
 
 
+def _n(usage, field: str) -> int:
+    value = getattr(usage, field, 0) if usage is not None else 0
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
+def billable_tokens(resp) -> int:
+    """Every token the call is billed for, not only the plain ones.
+
+    The fixed system prompt is cached, so on most questions the largest part of
+    the input arrives as cache tokens — and those were not counted at all: the
+    day's total read a fraction of the real bill. Writing the cache is charged
+    like input (a little more); reading it costs about a tenth.
+    """
+    usage = getattr(resp, "usage", None)
+    if usage is None:
+        return 0
+    return (_n(usage, "input_tokens") + _n(usage, "output_tokens")
+            + _n(usage, "cache_creation_input_tokens")
+            + _n(usage, "cache_read_input_tokens") // 10)
+
+
 def record(db: Session, resp) -> None:
     """Add this answer's tokens to the day. Atomic: workers race, rows don't.
 
@@ -114,10 +135,14 @@ def record(db: Session, resp) -> None:
 
 
 def _record(db: Session, resp) -> None:
-    used = 0
+    used = billable_tokens(resp)
     usage = getattr(resp, "usage", None)
-    if usage is not None:
-        used = int(getattr(usage, "input_tokens", 0) or 0) + int(getattr(usage, "output_tokens", 0) or 0)
+    # One line per paid call: without it nobody can tell from production what a
+    # day cost, whether the prompt cache is being hit, or how answers ended.
+    print(f"[usage] model={getattr(resp, 'model', '?')} stop={getattr(resp, 'stop_reason', '?')} "
+          f"in={_n(usage, 'input_tokens')} out={_n(usage, 'output_tokens')} "
+          f"cache_write={_n(usage, 'cache_creation_input_tokens')} "
+          f"cache_read={_n(usage, 'cache_read_input_tokens')} counted={used}", flush=True)
     day = _today()
     # insert-if-missing, then a relative UPDATE, so two workers adding at the
     # same moment both land instead of one overwriting the other

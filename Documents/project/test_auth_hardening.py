@@ -843,3 +843,20 @@ def test_a_taken_username_is_refused_whether_or_not_the_address_has_an_account()
     taken = _register("name-other@example.com", username="taken.name")
     free = _register("name-free@example.com", username="taken.name")
     assert taken.status_code == free.status_code == 400
+
+
+def test_names_that_sound_like_climby_cannot_be_registered():
+    assert _register("reserved-name@example.com", username="Support").status_code == 422
+    assert _register("reserved-name@example.com", username="moderator").status_code == 422
+
+
+def test_resetting_by_email_verifies_the_address(codes):
+    """The code came to the mailbox; that is the proof. The account used to be
+    left unverified and login refused it right after a successful reset."""
+    email = "reset-verifies@example.com"
+    assert _register(email).status_code == 200
+    assert client.post("/auth/forgot-password", json={"channel": "email", "contact": email}).status_code == 200
+    res = client.post("/auth/reset-password", json={
+        "channel": "email", "contact": email, "code": codes[-1], "new_password": "brand-new-pass-1"})
+    assert res.status_code == 200, res.text
+    assert _login(email, "brand-new-pass-1").status_code == 200

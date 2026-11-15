@@ -650,6 +650,11 @@ def reset_password(body: ResetPasswordRequest, request: Request, db: Session = D
         raise HTTPException(400, BAD_CODE)
 
     user.password_hash = security.hash_password(body.new_password)
+    # A code that arrived by email proves the mailbox, which is all that
+    # verifying the address ever meant. Without this, someone who reset the
+    # password of a never-verified account was then refused at login.
+    if body.channel == "email":
+        user.is_email_verified = True
     # Смяната на паролата прекратява и всички стари сесии. Ако някой е влязъл с
     # открадната или просто забравена отворена сесия, тя спира да важи още тук,
     # а не след тридесет дни.

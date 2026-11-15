@@ -14,7 +14,7 @@ from models import User
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/plan", tags=["plan"])
-client = Anthropic()  # чете ANTHROPIC_API_KEY от средата
+client = Anthropic(timeout=60.0, max_retries=1)  # чете ANTHROPIC_API_KEY от средата
 
 RATE_LIMIT_MESSAGE = {
     "bg": "Твърде много опити за кратко време — изчакай малко и опитай пак.",

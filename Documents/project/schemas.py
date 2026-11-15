@@ -10,6 +10,7 @@ from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field
 # което не се хваща никъде и излиза като 500 вместо като "паролата е твърде дълга".
 # bcrypt и без това гледа само първите 72 байта, така че 128 не ограничава никого.
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.]{3,20}$")
+RESERVED_USERNAMES = {"admin", "climby", "climbai", "support", "help", "moderator", "official", "system"}
 # Свободен формат нарочно: български номера се пишат и като 0888..., и като
 # +359888..., и с интервали. Махаме украсата и искаме само да е правдоподобно.
 PHONE_RE = re.compile(r"^\+?\d{6,15}$")
@@ -23,6 +24,11 @@ def _check_username(v):
         return None  # празно поле не е избор на име
     if not USERNAME_RE.match(v):
         raise ValueError("Потребителското име може да е 3-20 знака: букви, цифри, _ и .")
+    # Names that would read as Climby itself speaking. Friends refuses them at
+    # set-up, but skipped the check for a name chosen here at sign-up — so
+    # "support" could send friend requests to children.
+    if v.lower() in RESERVED_USERNAMES:
+        raise ValueError("Това потребителско име не е свободно. Избери друго.")
     # Stored lowercase, so the unique index means what every lookup (all
     # lower()) already assumes: "Marti" and "marti" are one name.
     return v.lower()

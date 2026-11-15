@@ -287,13 +287,16 @@ def list_students(user: User = Depends(get_current_user), db: Session = Depends(
 
 @router.delete("/students/{student_id}")
 def unlink_student(student_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    link = db.query(FamilyLink).filter(
+    # All of them: nothing in the database stops the same pair being linked
+    # twice, and removing one left the parent still seeing the child.
+    links = db.query(FamilyLink).filter(
         FamilyLink.parent_user_id == user.id,
         FamilyLink.student_user_id == student_id,
-    ).first()
-    if not link:
+    ).all()
+    if not links:
         raise HTTPException(404, "Link not found.")
-    db.delete(link)
+    for link in links:
+        db.delete(link)
     _forget_crew_approval(db, user.id, student_id)
     db.commit()
     return {"status": "ok"}
@@ -322,13 +325,16 @@ def list_parents(user: User = Depends(get_current_user), db: Session = Depends(g
 
 @router.delete("/parents/{parent_id}")
 def revoke_parent(parent_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    link = db.query(FamilyLink).filter(
+    # All of them: nothing in the database stops the same pair being linked
+    # twice, and removing one left the parent still seeing the child.
+    links = db.query(FamilyLink).filter(
         FamilyLink.parent_user_id == parent_id,
         FamilyLink.student_user_id == user.id,
-    ).first()
-    if not link:
+    ).all()
+    if not links:
         raise HTTPException(404, "Link not found.")
-    db.delete(link)
+    for link in links:
+        db.delete(link)
     _forget_crew_approval(db, parent_id, user.id)
     db.commit()
     return {"status": "ok"}

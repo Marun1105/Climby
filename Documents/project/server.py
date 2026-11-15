@@ -51,7 +51,10 @@ from models import FocusSession, ProblemBrief, ScanHistory, Task, User
 from schemas import image_media_type
 
 app = FastAPI()
-client = Anthropic()  # чете ANTHROPIC_API_KEY от средата
+# The SDK's own defaults are a ten-minute timeout and two retries: a stuck call
+# kept a worker thread (and a database connection) for up to half an hour
+# after the app had given up at three minutes — and was still paid for.
+client = Anthropic(timeout=120.0, max_retries=1)  # чете ANTHROPIC_API_KEY от средата
 # The reader has its own hard stop (relay.READER_TIMEOUT_S), and the SDK's two
 # automatic retries would triple it into a wait the student's app gives up on.
 # One try; on failure the tutor model reads the photos, which is the designed fallback.
@@ -355,6 +358,11 @@ class Ask(BaseModel):
 RATE_LIMIT_MESSAGE = {
     "bg": "Твърде много опити за кратко време — изчакай малко и опитай пак.",
     "en": "Too many requests in a short time — please wait a bit and try again.",
+}
+
+TUTOR_ERROR_MESSAGE = {
+    "bg": "ClimbAI не успя да отговори този път. Опитай пак след малко.",
+    "en": "ClimbAI couldn't answer this time. Try again in a moment.",
 }
 
 ASK_ERROR_MESSAGE = {
@@ -1305,7 +1313,7 @@ def _memory_context(db: Session, user: User, lang: str, selection: MemorySelecti
         finished = db.query(Task).filter(
             Task.user_id == user.id, Task.done.is_(True), Task.completed_at >= week_ago).count()
         overdue = db.query(Task).filter(
-            Task.user_id == user.id, Task.done.is_(False), Task.deadline < date.today()).count()
+            Task.user_id == user.id, Task.done.is_(False), Task.deadline < holds.local_date()).count()
         week.append(f"- finished {finished} tasks, {overdue} overdue" if lang == "en"
                     else f"- свършени {finished} задачи, {overdue} просрочени")
     if week:
@@ -1389,6 +1397,7 @@ def _read_pages(db: Session, body: "Ask", user: Optional[User], lang: str):
             "type": "base64", "media_type": _image_media_type(img) or "image/jpeg", "data": img}}
         for img in body.images
     ]
+    db.commit()   # give the connection back before the long wait
     try:
         fields, resp = relay.read_pages(reader_client, image_blocks, body.question, lang,
                                         grade=getattr(user, "grade", None) if user else None)
@@ -1516,7 +1525,7 @@ def ask(
         system += SOLVED_MARK[lang]
     offering_tasks = bool(user and (body.context or body.memory is not None) and body.surface == "chat")
     if offering_tasks:
-        today = date.today()
+        today = holds.local_date()
         system += TASK_OFFER[lang].format(
             today=today.isoformat(),
             tomorrow=(today + timedelta(days=1)).isoformat(),
@@ -1524,7 +1533,7 @@ def ask(
         )
     smart = bool(user and body.surface == "chat")
     if smart:
-        today = date.today()
+        today = holds.local_date()
         system += SMART_ACTIONS[lang].format(
             today=today.isoformat(),
             tomorrow=(today + timedelta(days=1)).isoformat(),
@@ -1535,10 +1544,16 @@ def ask(
     system_blocks = [{"type": "text", "text": system[:fixed_len], "cache_control": {"type": "ephemeral"}}]
     if system[fixed_len:].strip():
         system_blocks.append({"type": "text", "text": system[fixed_len:]})
+    # Give the connection back before the long wait: with it held through a
+    # slow model call, a dozen slow questions emptied the pool and login, tasks
+    # and /healthz failed for everyone.
+    db.commit()
     try:
         resp = client.beta.messages.create(
             model=TUTOR_MODEL,
-            max_tokens=2500 if smart else 1500,
+            # Room to finish: an answer cut at the limit reached the student
+            # mid-sentence. Only the tokens actually written are billed.
+            max_tokens=6000 if smart else 4000,
             betas=[relay.ADVISOR_BETA],
             tools=relay.tutor_tools(),
             system=system_blocks,
@@ -1546,7 +1561,16 @@ def ask(
         )
     except APIError:
         raise HTTPException(502, ASK_ERROR_MESSAGE[lang])
+    except Exception as err:  # noqa: BLE001 — a timeout, a broken connection: same kind answer
+        print(f"[ask] tutor call failed: {err!r}", flush=True)
+        raise HTTPException(502, TUTOR_ERROR_MESSAGE[lang])
     usage.record(db, resp)
+    # How the answer ended matters: a refusal or an answer with nothing in it
+    # used to go out as HTTP 200 with empty text and was saved to history.
+    stop = getattr(resp, "stop_reason", None)
+    if stop == "refusal" or not relay.answer_text(resp).strip():
+        print(f"[ask] tutor gave no usable answer (stop_reason={stop})", flush=True)
+        raise HTTPException(502, TUTOR_ERROR_MESSAGE[lang])
     # Only what comes after the last tool round-trip: the model sometimes announces
     # the consultation first ("let me consult on the best method"), and that
     # sentence is not for the student.
