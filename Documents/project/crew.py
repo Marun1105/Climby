@@ -263,7 +263,7 @@ def set_up(body: ProfileIn, request: Request,
     # the account has and never changes it.
     if user.username:
         if name != user.username.lower():
-            raise HTTPException(409, f"Your username is @{user.username} — Crew uses that one.")
+            raise HTTPException(409, f"Your username is @{user.username} — Friends uses that one.")
         name = user.username
     elif not USERNAME.match(name) or ".." in name or name in RESERVED:
         raise HTTPException(400, "Use 3–20 letters, numbers, dots or underscores, starting and ending with a letter or number.")
@@ -570,7 +570,7 @@ def set_approval(body: ApprovalIn, user: User = Depends(get_current_user), db: S
                                             FamilyLink.student_user_id == body.student_id).first()
     profile = db.get(SocialProfile, body.student_id) if linked else None
     if profile is None:
-        raise HTTPException(404, "No linked child with Crew set up.")
+        raise HTTPException(404, "No linked child with Friends set up.")
     if body.allow:
         profile.parent_approved_at = _now()
         profile.parent_approved_by = user.id

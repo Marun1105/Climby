@@ -22,18 +22,18 @@ The app is in Bulgarian and English and installs on Windows.
 | Screen | What it's for |
 |---|---|
 | **ClimbAI** | Photograph a page and ask. The answer explains the road, not just the result. Under the cards: what is next on your Route and what you asked lately. |
-| **Ascent** | A quiet timer while you study, with the history of your sessions beside it. Presence detection runs entirely on your device — no image ever leaves it. |
-| **The Route** | Today's homework, most urgent first, filterable by subject. A big task can be split into steps, and ClimbAI can suggest an order for the evening. |
-| **Summited** | Everything you have finished and every question you asked — with three numbers on top: done, on time, this week. |
-| **Rope Team** | A parent sees the numbers — how many tasks, how much time, how many days in a row. Never what is in them. |
-| **Base Camp** | A teacher creates a class with a code and sees the same numbers for the whole class, and nothing more. |
+| **Focus mode** | A quiet timer while you study, with the history of your sessions beside it. Presence detection runs entirely on your device — no image ever leaves it. |
+| **Homework** | Today's homework, most urgent first, filterable by subject. A big task can be split into steps, and ClimbAI can suggest an order for the evening. |
+| **Done & dusted** | Everything you have finished and every question you asked — with three numbers on top: done, on time, this week. |
+| **Family** | A parent sees the numbers — how many tasks, how much time, how many days in a row. Never what is in them. |
+| **Class** | A teacher creates a class with a code and sees the same numbers for the whole class, and nothing more. |
 | **Chat** | The circle in the corner opens ClimbAI over any screen, for "what is a prime number" rather than "check problem 7". It can see your Route, so "what should I start with?" means something. |
 
-| The Route | Ascent |
+| Homework | Focus mode |
 |---|---|
-| ![The Route](Documents/project/docs/screenshots/route.png) | ![Ascent](Documents/project/docs/screenshots/ascent.png) |
-| **Summited** | **Chat, light theme** |
-| ![Summited](Documents/project/docs/screenshots/summited.png) | ![Chat](Documents/project/docs/screenshots/chat-light.png) |
+| ![Homework](Documents/project/docs/screenshots/route.png) | ![Focus mode](Documents/project/docs/screenshots/ascent.png) |
+| **Done & dusted** | **Chat, light theme** |
+| ![Done & dusted](Documents/project/docs/screenshots/summited.png) | ![Chat](Documents/project/docs/screenshots/chat-light.png) |
 
 ---
 

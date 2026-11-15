@@ -450,7 +450,7 @@
         </select>
       </div>
     </div>
-    <div class="settings-row" data-icon="peak">
+    <div class="settings-row" data-icon="image">
       <span class="settings-label" data-i18n="look.watermark">Логото на фона</span>
       <div class="settings-control">
         <select class="settings-select" data-look="watermark" data-i18n-aria="look.watermark" aria-label="Логото на фона">
@@ -590,7 +590,7 @@
 
     <div id="familyStudentHalf" class="hidden">
     <div class="explainer settings-explainer">
-      <strong data-i18n="family.introStudent">Your rope team.</strong> <span data-i18n="family.introStudentBody">Whoever you give a code to sees your numbers — how many tasks, how many minutes, how many days in a row. Never what a task says or what you asked.</span>
+      <strong data-i18n="family.introStudent">Your family circle.</strong> <span data-i18n="family.introStudentBody">Whoever you give a code to sees your numbers — how many tasks, how many minutes, how many days in a row. Never what a task says or what you asked.</span>
     </div>
 
     <!-- Side by side on a wide screen: making a code, and who already holds one. -->
@@ -662,7 +662,7 @@
       <button id="tourReplayBtn" class="btn-secondary tour-replay" type="button" data-i18n="settings.tourBtn">Start</button>
     </div>
     <div class="settings-row" data-icon="speaker">
-      <span><span data-i18n="holds.soundSetting">Sound effects</span><br><small class="settings-note" data-i18n="holds.soundHint">A clink for every hold you earn, and a little fanfare for the big ones.</small></span>
+      <span><span data-i18n="holds.soundSetting">Sound effects</span><br><small class="settings-note" data-i18n="holds.soundHint">A clink for every point you earn, and a little fanfare for the big ones.</small></span>
       <label class="switch"><input id="soundsOn" type="checkbox" role="switch" data-i18n-aria-label="holds.soundSetting" aria-label="Sound effects" checked><span class="switch-track"></span></label>
     </div>
     <div class="settings-row" data-icon="bell">
@@ -734,8 +734,8 @@
         </div>
       </div>
       <div class="nav-group">
-        <button class="nav-link nav-parent nav-crew" data-view="crew"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 20 9 9l3.5 5.5L15 11l6.5 9z"/><path d="M15 11V4.5l3.5 1.2L15 7"/></svg>
-          <span data-i18n="nav.crew">Crew</span>
+        <button class="nav-link nav-parent nav-crew" data-view="crew"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2"/><circle cx="17" cy="9.5" r="2.4"/><path d="M17.2 14.4c2.2.2 3.6 1.7 4 4.2"/></svg>
+          <span data-i18n="nav.crew">Friends</span>
         </button>
       </div>
     </nav>
@@ -933,7 +933,7 @@
   <div class="home-start-row">
     <button type="button" class="home-start-item" data-goto-view="checklist">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><path d="m3 6.5 1.4 1.4L7 5.4"/><path d="m3 12 1.4 1.4L7 10.9"/><path d="m3 17.5 1.4 1.4L7 16.4"/></svg>
-      <span><strong data-i18n="home.startRoute">Write down your homework</strong><span data-i18n="home.startRouteHint">The Route puts the most urgent first.</span></span>
+      <span><strong data-i18n="home.startRoute">Write down your homework</strong><span data-i18n="home.startRouteHint">Homework puts the most urgent first.</span></span>
     </button>
     <button type="button" class="home-start-item" id="homeStartChat">
       <span class="spark climbai-mark" aria-hidden="true"></span>
@@ -1380,7 +1380,7 @@
 
 </main>
 
-<!-- Crew: friends on a mountain. crew.js draws everything inside the stage. -->
+<!-- Friends (Crew in the code). crew.js draws everything inside the stage. -->
 <main id="view-crew" class="view hidden">
   <div id="crewStage" class="crew-stage"></div>
 </main>

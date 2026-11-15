@@ -1,4 +1,4 @@
-/* crew.css — the Crew screen: friends on a mountain, earning holds.
+/* crew.css — the Friends screen (Crew in the code): friends, earning points.
  *
  * The look borrows from Bump on purpose (the owner's reference): a map-like
  * ground with contour lines, round avatar bubbles that float, a glowing ring
@@ -48,19 +48,9 @@
     linear-gradient(180deg, var(--crew-sky-2) 0%, color-mix(in srgb, var(--accent) 18%, #ffffff) 100%);
 }
 
-/* ---- the ground: contour lines, ridges, the trail ---------------------- */
+/* ---- the ground: the dotted line the bubbles sit on ---------------------- */
 .crew-layer { position: absolute; inset: -4%; pointer-events: none; will-change: transform; transition: transform 0.25s ease-out; }
 .crew-layer svg { width: 100%; height: 100%; display: block; }
-.crew-topo path { fill: none; stroke: currentColor; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.crew-topo { color: color-mix(in srgb, #ffffff 16%, transparent); }
-:root[data-theme="light"] .crew-topo { color: color-mix(in srgb, var(--accent) 22%, transparent); }
-.crew-ridge-far { fill: color-mix(in srgb, var(--accent) 35%, #241a5c); opacity: 0.55; }
-.crew-ridge-mid { fill: color-mix(in srgb, var(--accent) 45%, #160f3d); opacity: 0.8; }
-.crew-ridge-near { fill: color-mix(in srgb, var(--accent) 25%, #0c0824); }
-.crew-snow { fill: #ffffff; opacity: 0.85; }
-:root[data-theme="light"] .crew-ridge-far { fill: color-mix(in srgb, var(--accent) 25%, #ffffff); opacity: 0.9; }
-:root[data-theme="light"] .crew-ridge-mid { fill: color-mix(in srgb, var(--accent) 40%, #ffffff); opacity: 0.9; }
-:root[data-theme="light"] .crew-ridge-near { fill: color-mix(in srgb, var(--accent) 60%, #ffffff); }
 
 .crew-trail { position: absolute; inset: 0; pointer-events: none; }
 .crew-trail svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -71,10 +61,6 @@
   animation: crew-march 1.6s linear infinite;
 }
 @keyframes crew-march { to { stroke-dashoffset: -28; } }
-.crew-flag { position: absolute; transform: translate(-20%, -100%); font-size: 0; }
-.crew-flag svg { width: 44px; height: 54px; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
-.crew-flag-cloth { transform-origin: 6px 8px; animation: crew-wave 2.4s ease-in-out infinite; }
-@keyframes crew-wave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-6deg) scaleX(0.92); } }
 
 /* ---- the bubbles --------------------------------------------------------- */
 .crew-bubbles { position: absolute; inset: 0; }

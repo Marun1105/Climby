@@ -140,7 +140,7 @@ const HoldsFx = (() => {
       'M16 2c5 1 9 5 11 10s1 12-5 15-14 2-17-4S7 3 16 2z',
     ];
     return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="${shapes[i % 3]}" fill="${COLORS[i % COLORS.length]}"/>
-      <circle cx="16" cy="16" r="3" fill="rgba(0,0,0,.35)"/><circle cx="12" cy="11" r="3" fill="rgba(255,255,255,.45)"/></svg>`;
+      <circle cx="12" cy="11" r="3" fill="rgba(255,255,255,.45)"/></svg>`;
   }
 
   // "+n" where it happened, holds flying to the counter, the counter rolling.
