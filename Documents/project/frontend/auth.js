@@ -19,6 +19,7 @@ const Auth = (() => {
   function isLoggedIn() { return !!getToken(); }
 
   function _setSession(token, user, remember) {
+    try { localStorage.setItem(KNOWN_KEY, '1'); } catch { /* the welcome shows again; harmless */ }
     const store = remember ? localStorage : sessionStorage;
     const other = remember ? sessionStorage : localStorage;
     other.removeItem(TOKEN_KEY);
@@ -41,6 +42,11 @@ const Auth = (() => {
   }
 
   // ---------- entry gate (full-screen login/register shown before the app) ----------
+
+  // Someone who has signed in on this computer before knows what Climby is:
+  // they get the sign-in form. Everyone else gets the welcome first.
+  const KNOWN_KEY = 'climby-known';
+  function isKnown() { try { return localStorage.getItem(KNOWN_KEY) === '1'; } catch { return false; } }
 
   function showEntryGate() { $('entryGate').classList.remove('hidden'); }
 
@@ -146,7 +152,15 @@ const Auth = (() => {
       const el = $(`${f}Form`);
       if (el) el.classList.toggle('hidden', f !== name);
     });
-    $('authIntro').classList.toggle('hidden', name !== 'login' && name !== 'register');
+    // The welcome is its own screen, not a form inside the card.
+    const welcome = name === 'welcome';
+    $('welcomePanel').classList.toggle('hidden', !welcome);
+    $('entryGateCard').classList.toggle('hidden', welcome);
+    if (welcome && window.Welcome) Welcome.reveal();
+    // Sign-up is kept short: the "why" box and the long security note belong
+    // to the sign-in form. Sign-up has its own one-line promise by the checkbox.
+    $('authIntro').classList.toggle('hidden', name !== 'login');
+    $('authSecurityNote').classList.toggle('hidden', name !== 'login');
     clearError();
   }
 
@@ -192,6 +206,102 @@ const Auth = (() => {
 
   // ---------- password strength meter (register + reset) ----------
 
+  const PW_MIN = 8;   // the same minimum the server enforces
+
+  // The ten thousand passwords everyone already knows (common-passwords.txt,
+  // built by tools/build_common_passwords.py from a published list). Fetched
+  // the first time a new password is being typed; the server checks the same
+  // list, so this only makes the answer arrive while typing.
+  let commonPasswords = null;
+  let commonLoading = null;
+  function loadCommonPasswords() {
+    if (commonPasswords || commonLoading) return;
+    commonLoading = fetch('common-passwords.txt')
+      .then(r => (r.ok ? r.text() : ''))
+      .then(text => {
+        commonPasswords = new Set(text.split('\n').filter(Boolean));
+        // whatever is already typed is judged again now that the list is here
+        updatePwStrength('registerPassword', 'registerPwStrength', 'registerPwBar', 'registerPwLabel');
+        updatePwStrength('resetPassword', 'resetPwStrength', 'resetPwBar', 'resetPwLabel');
+      })
+      .catch(() => { commonLoading = null; });
+  }
+  function isCommonPassword(pw) {
+    return !!(commonPasswords && commonPasswords.has(String(pw).trim().toLowerCase()));
+  }
+
+  // ---------- username: free or taken, said while typing ----------
+  //
+  // The check waits until typing pauses (a request per keystroke would be
+  // noise, and "taken" flashing under a half-typed name is wrong more often
+  // than right). A newer keystroke makes an older answer irrelevant.
+  const USERNAME_SHAPE = /^[a-zA-Z0-9_.]{3,20}$/;
+  let usernameTimer = null;
+  let usernameSeq = 0;
+  let usernameState = 'unknown';     // unknown | ok | taken | invalid
+
+  function usernameStatus(kind, text, ideas) {
+    const el = $('registerUsernameStatus');
+    el.className = 'field-status' + (kind ? ' is-' + kind : ' hidden');
+    el.textContent = text || '';
+    for (const idea of ideas || []) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'field-chip';
+      chip.textContent = idea;
+      chip.addEventListener('click', () => {
+        $('registerUsername').value = idea;
+        usernameState = 'ok';            // the server just said these are free
+        usernameStatus('ok', t('auth.usernameFree'));
+        $('registerEmail').value ? $('registerPassword').focus() : $('registerEmail').focus();
+      });
+      el.appendChild(chip);
+    }
+  }
+
+  async function askUsername(name, forIdeas) {
+    const mine = ++usernameSeq;
+    try {
+      const res = await fetch(BACKEND + '/auth/username-check?username=' + encodeURIComponent(name));
+      if (!res.ok || mine !== usernameSeq) return null;
+      return await res.json();
+    } catch {
+      return null;      // no answer is not "taken": the form still submits and the server decides
+    }
+  }
+
+  function checkUsernameSoon() {
+    clearTimeout(usernameTimer);
+    usernameSeq++;
+    usernameState = 'unknown';
+    const name = $('registerUsername').value.trim();
+    if (!name) { usernameStatus(null); return; }
+    if (!USERNAME_SHAPE.test(name)) {
+      // the rule is only said once they have typed enough to have broken it
+      if (name.length >= 3 || /[^a-zA-Z0-9_.]/.test(name)) { usernameState = 'invalid'; usernameStatus('bad', t('auth.usernameRule')); }
+      else usernameStatus(null);
+      return;
+    }
+    usernameStatus('wait', t('auth.usernameChecking'));
+    usernameTimer = setTimeout(async () => {
+      const data = await askUsername(name);
+      if (!data || $('registerUsername').value.trim() !== name) { if (!data) usernameStatus(null); return; }
+      if (data.ok) { usernameState = 'ok'; usernameStatus('ok', t('auth.usernameFree')); }
+      else { usernameState = 'taken'; usernameStatus('bad', t('auth.usernameTaken'), data.suggestions); }
+    }, 450);
+  }
+
+  // No username yet and an email just typed: offer one made from the address.
+  async function suggestUsernameFromEmail() {
+    if ($('registerUsername').value.trim()) return;
+    const local = ($('registerEmail').value.split('@')[0] || '').replace(/[^a-zA-Z0-9_.]/g, '');
+    if (local.length < 3) return;
+    const data = await askUsername(local);
+    if (!data || $('registerUsername').value.trim()) return;
+    const ideas = data.ok ? [local.toLowerCase()] : data.suggestions;
+    if (ideas && ideas.length) usernameStatus('hint', t('auth.usernameSuggest'), ideas);
+  }
+
   function pwScore(pw) {
     if (!pw) return 0;
     let score = 0;
@@ -211,16 +321,19 @@ const Auth = (() => {
     const score = pwScore(pw);
     const bar = $(barId);
     const label = $(labelId);
-    const pct = Math.min(100, (score / 5) * 100);
+    const pct = pw.length < PW_MIN ? Math.max(8, (pw.length / PW_MIN) * 33) : isCommonPassword(pw) ? 33 : score <= 2 ? 66 : 100;
     bar.style.width = pct + '%';
     // Силата се показваше с цвят — а в черно-бяла тема --danger, --warn, --blue
     // и --accent са едно и също бяло. Тоест "слаба" се рисуваше най-ярко от
     // всички, точно обратното на смисъла. Затова степента вече е клас, а
     // плътността расте заедно с нея (виж .pw-strength-fill в style.css).
+    // Three states, each with its own colour AND its own words, so it reads
+    // without colour too: red — does not meet the requirement (8 characters);
+    // yellow — accepted, but easy to guess; green — good.
     let level, text;
-    if (score <= 1) { level = 'is-weak'; text = t('auth.pwWeak'); }
-    else if (score <= 2) { level = 'is-fair'; text = t('auth.pwFair'); }
-    else if (score <= 3) { level = 'is-good'; text = t('auth.pwGood'); }
+    if (pw.length < PW_MIN) { level = 'is-bad'; text = t('auth.pwTooShort', { n: PW_MIN }); }
+    else if (isCommonPassword(pw)) { level = 'is-bad'; text = t('auth.pwCommon'); }
+    else if (score <= 2) { level = 'is-ok'; text = t('auth.pwFair'); }
     else { level = 'is-strong'; text = t('auth.pwStrong'); }
     bar.className = 'pw-strength-fill ' + level;
     label.className = 'pw-strength-label ' + level;
@@ -229,13 +342,32 @@ const Auth = (() => {
 
   async function handleRegister() {
     clearError();
-    const name = $('registerName').value.trim();
+    // Sign-up asks for four things. The name people see starts as the
+    // username; "who are you" and the rest are asked after the first sign-in
+    // (onboarding.js), where they can be skipped.
+    const username = $('registerUsername').value.trim();
     const email = $('registerEmail').value.trim();
     const password = $('registerPassword').value;
     const phone = $('registerPhone').value.trim();
-    const role = (document.querySelector('input[name="registerRole"]:checked') || {}).value || 'student';
-    if (!name || !email || !password) {
+    if (!username || !email || !password) {
       setError(t('auth.errFillAll'));
+      return;
+    }
+    if (!USERNAME_SHAPE.test(username)) {
+      setError(t('auth.usernameRule'));
+      return;
+    }
+    if (usernameState === 'taken') {
+      setError(t('auth.usernameTaken'));
+      $('registerUsername').focus();
+      return;
+    }
+    if (password.length < PW_MIN) {
+      setError(t('auth.pwTooShort', { n: PW_MIN }));
+      return;
+    }
+    if (isCommonPassword(password)) {
+      setError(t('auth.pwCommon'));
       return;
     }
     if (!$('registerTerms').checked) {
@@ -245,12 +377,7 @@ const Auth = (() => {
     try {
       // Отговорът "откъде чу за нас" е даден още във въпросника при първото
       // отваряне — пътува с регистрацията, вместо да се пита пак.
-      let heardFrom = null;
-      try { heardFrom = localStorage.getItem('climby-quiz-heard'); } catch { /* без него също върви */ }
-      await register(name, email, password, role,
-                     $('registerUsername').value.trim(),
-                     phone,
-                     heardFrom);
+      await register(username, email, password, 'student', username, phone, null);
       pendingVerifyEmail = email;
       showForm('verify');
     } catch (err) {
@@ -395,6 +522,8 @@ const Auth = (() => {
     $('loginRemember').checked = false;
     $('registerPwStrength').classList.add('hidden');
     $('resetPwStrength').classList.add('hidden');
+    usernameState = 'unknown';
+    usernameStatus(null);
     pendingVerifyEmail = null;
     pendingPhoneEmail = null;
     pendingResetEmail = null;
@@ -416,7 +545,7 @@ const Auth = (() => {
     $('entryGateClose').addEventListener('click', skipEntryGate);
     $('checklistLoginBtn').addEventListener('click', showEntryGate);
 
-    $('showRegister').addEventListener('click', e => { e.preventDefault(); showForm('register'); });
+    $('showRegister').addEventListener('click', e => { e.preventDefault(); showForm('register'); loadCommonPasswords(); });
     $('showLogin').addEventListener('click', e => { e.preventDefault(); showForm('login'); });
     $('showForgot').addEventListener('click', e => { e.preventDefault(); showForm('forgot'); });
     $('showLoginFromForgot').addEventListener('click', e => { e.preventDefault(); showForm('login'); });
@@ -432,12 +561,10 @@ const Auth = (() => {
     $('resetBtn').addEventListener('click', () => _withBusy($('resetBtn'), handleReset));
     $('logoutBtn').addEventListener('click', handleLogout);
 
-    // Ролята, дадена във въпросника, идва отметната — питали сме веднъж.
-    try {
-      const hinted = localStorage.getItem('climby-quiz-role');
-      const radio = hinted && document.querySelector(`input[name="registerRole"][value="${hinted}"]`);
-      if (radio) radio.checked = true;
-    } catch { /* без localStorage просто остава по подразбиране */ }
+    $('welcomeStart').addEventListener('click', () => { showForm('register'); loadCommonPasswords(); $('registerUsername').focus(); });
+    $('welcomeLogin').addEventListener('click', e => { e.preventDefault(); showForm('login'); $('loginEmail').focus(); });
+    $('welcomeGuest').addEventListener('click', skipEntryGate);
+    showForm(isKnown() ? 'login' : 'welcome');
 
     _submitOnEnter('loginForm', 'loginBtn');
     _submitOnEnter('registerForm', 'registerBtn');
@@ -446,6 +573,27 @@ const Auth = (() => {
     _submitOnEnter('forgotForm', 'forgotBtn');
     _submitOnEnter('resetForm', 'resetBtn');
 
+    $('registerUsername').addEventListener('input', checkUsernameSoon);
+    $('registerEmail').addEventListener('blur', suggestUsernameFromEmail);
+    // E-mail and phone: said when the field is left, not while it is first being
+    // typed ("that is not an address" three letters in is noise). Once a
+    // message is showing it is re-checked on every key, so it goes away the
+    // moment the field is right.
+    const watch = (inputId, statusId, problem) => {
+      const input = $(inputId), status = $(statusId);
+      const check = () => {
+        const key = input.value.trim() ? problem(input.value.trim()) : null;
+        status.textContent = key ? t(key) : '';
+        status.classList.toggle('hidden', !key);
+        status.classList.toggle('is-bad', !!key);
+      };
+      input.addEventListener('blur', check);
+      input.addEventListener('input', () => { if (!status.classList.contains('hidden')) check(); });
+    };
+    watch('registerEmail', 'registerEmailStatus', v => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? null : 'auth.emailLooksOff'));
+    watch('registerPhone', 'registerPhoneStatus', v => (/^\+?[\d\s().-]{7,}$/.test(v) ? null : 'auth.phoneLooksOff'));
+    $('registerPassword').addEventListener('focus', loadCommonPasswords);
+    $('resetPassword').addEventListener('focus', loadCommonPasswords);
     $('registerPassword').addEventListener('input', () =>
       updatePwStrength('registerPassword', 'registerPwStrength', 'registerPwBar', 'registerPwLabel'));
     $('resetPassword').addEventListener('input', () =>
@@ -516,6 +664,9 @@ const Auth = (() => {
       if ($(id)) $(id).classList.add('hidden');
     });
     if ($('roleForm')) $('roleForm').classList.remove('hidden');
+    // the role question lives in the card, which the welcome screen hides
+    $('welcomePanel').classList.add('hidden');
+    $('entryGateCard').classList.remove('hidden');
     // The gate has to be re-opened, not merely left alone. _setSession fires
     // climby:auth-changed, whose listener sees a signed-in user and closes the
     // gate — and #roleForm lives inside it. Without this line the question is
@@ -550,6 +701,8 @@ const Auth = (() => {
       const store = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
       store.setItem(USER_KEY, JSON.stringify(user));
       if ($('roleForm')) $('roleForm').classList.add('hidden');
+      // answered here already: the questions after sign-in start from the next one
+      try { sessionStorage.setItem('climby-role-asked', '1'); } catch { /* asked twice, at worst */ }
       hideEntryGate();
       window.dispatchEvent(new CustomEvent('climby:auth-changed', { detail: { loggedIn: true, user } }));
     });

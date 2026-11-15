@@ -838,7 +838,7 @@ _MAP_MUST_NAME = [
 
 
 def _app_map_halves():
-    path = os.path.join(os.path.dirname(__file__), "server.py")
+    path = os.path.join(os.path.dirname(__file__), "prompts.py")
     with open(path, encoding="utf-8") as f:
         server_src = f.read()
     app_map = server_src[server_src.index("APP_MAP = {"):server_src.index("SURFACE = {")]
@@ -873,7 +873,7 @@ def test_the_tutor_knows_every_screen_and_setting_the_app_has():
             assert m, f"{key} is missing from the {lang} dictionary"
             label = m.group(1)
             assert label in halves[lang], (
-                f"the {lang} half of APP_MAP in server.py never names {label!r} ({key}). "
+                f"the {lang} half of APP_MAP in prompts.py never names {label!r} ({key}). "
                 f"APP_MAP is generated from these strings — if the app changed, the map has "
                 f"to be regenerated, or the tutor will describe an app that no longer exists."
             )
@@ -946,9 +946,9 @@ def test_github_style_theme_defaults_dark_and_keeps_light_mode():
     css = _read("style.css")
     theme = _read("theme.js")
     html = _read("index.html")
-    # A new student starts on Midnight, the 1.0.24 dark look; the 16 other
-    # palettes (themes.css) are choices on top of it, never the default.
-    assert "return BY_ID[saved] ? saved : 'midnight';" in theme
+    # A new student starts on "Match system" (Nov 2026; it was Midnight since
+    # 1.0.24): the device decides between Midnight and Daylight.
+    assert "return BY_ID[saved] ? saved : 'auto';" in theme
     assert "{ id: 'midnight', base: 'dark' }" in theme
     assert "--bg: #0d1117;" in css and "--accent: #8957e5;" in css
     assert '[data-theme="light"] {' in css and "--accent: #8250df;" in css
@@ -1369,10 +1369,10 @@ def test_the_session_history_only_shows_what_is_really_stored():
     that screen would be invented, and a number a student cannot trust is worse
     than no number."""
     js = _read("sessions.js")
-    assert "focus_pct" in js and "duration_seconds" in js and "created_at" in js
+    assert "presence_pct" in js and "duration_seconds" in js and "created_at" in js
     # a session with the camera off says so rather than showing 0%
     assert "sessions.noCamera" in js
-    assert "session.focus_pct === null" in js
+    assert "pct(session) === null" in js
 
 
 def test_the_session_strings_exist_in_both_languages():
@@ -1387,7 +1387,7 @@ def test_the_session_strings_exist_in_both_languages():
 def test_the_tutor_offers_more_than_exercises():
     """The kinds were named in one sentence, but every example under them was an
     exercise with a page number — and that is what the model anchored on."""
-    path = os.path.join(os.path.dirname(__file__), "server.py")
+    path = os.path.join(os.path.dirname(__file__), "prompts.py")
     with open(path, encoding="utf-8") as f:
         server_src = f.read()
     offer = server_src[server_src.index("TASK_OFFER = {"):server_src.index("SOLVED_MARK = {")]

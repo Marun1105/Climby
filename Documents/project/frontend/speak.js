@@ -94,11 +94,18 @@ const Speak = (() => {
     speakLocal(text, code, voice);
   }
 
+  // How fast to read, chosen once in Settings and remembered.
+  function speed() {
+    const v = window.Prefs ? Number(Prefs.get('speed')) : 1;
+    return v >= 0.5 && v <= 2 ? v : 1;
+  }
+
   function speakLocal(text, code, voice) {
     if (!synth) { setSpeaking(false); return; }
     const u = new SpeechSynthesisUtterance(text);
     u.lang = code;
     if (voice && !voice.cloud) u.voice = voice;
+    u.rate = speed();
     u.onend = u.onerror = () => { if (current === u) { current = null; setSpeaking(false); } };
     current = u;
     setSpeaking(true);
@@ -128,6 +135,7 @@ const Speak = (() => {
       if (i + 1 < list.length) next = Voices.fetchAudio(voice, list[i + 1]);
       next && next.catch(() => {});        // a failure is handled when it is reached
       audio = new Audio(url);
+      audio.playbackRate = speed();
       const ended = new Promise(resolve => { audio.onended = audio.onerror = resolve; });
       try { await audio.play(); } catch { /* blocked: the end comes at once */ }
       await ended;

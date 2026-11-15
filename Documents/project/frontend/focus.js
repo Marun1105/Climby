@@ -30,6 +30,9 @@ const Focus = (() => {
   };
 
   let sessionStart = null;
+  // A session started with "Start without the camera": a plain timer. Nothing
+  // is opened, nothing is watched, and no desk-time figure is recorded.
+  let noCamera = false;
   // Time the computer spent asleep (lid closed) is not study time. A beat every
   // 15 s notices a gap; anything over two minutes is taken off the session.
   let sleepPauseMs = 0;
@@ -113,14 +116,20 @@ const Focus = (() => {
 
   function computeStreak(sessions) {
     const days = new Set(sessions.map(s => dateKey(s.created_at)));
+    // A planned day off (Settings → rest days) never breaks the run.
+    const rest = d => window.Prefs && Prefs.get('rest') === 'weekend' && (d.getDay() === 0 || d.getDay() === 6);
     const cursor = new Date();
-    if (!days.has(dateKey(cursor.toISOString()))) {
+    // Today may still be empty; a rest day may be empty. Step back to the last
+    // day that had to have something — if that one is empty, there is no run.
+    if (!days.has(dateKey(cursor.toISOString()))) cursor.setDate(cursor.getDate() - 1);
+    for (let guard = 0; guard < 7 && !days.has(dateKey(cursor.toISOString())) && rest(cursor); guard++) {
       cursor.setDate(cursor.getDate() - 1);
-      if (!days.has(dateKey(cursor.toISOString()))) return 0;
     }
+    if (!days.has(dateKey(cursor.toISOString()))) return 0;
     let streak = 0;
-    while (days.has(dateKey(cursor.toISOString()))) {
-      streak++;
+    for (let guard = 0; guard < 400; guard++) {
+      if (days.has(dateKey(cursor.toISOString()))) streak++;
+      else if (!rest(cursor)) break;
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
@@ -142,7 +151,8 @@ const Focus = (() => {
       const data = await res.json();
       const sessions = (data.events || []).filter(e => e.kind === 'session').map(e => ({ created_at: e.at }));
       if (!sessions.length) { el.classList.add('hidden'); return; }
-      const streak = computeStreak(sessions);
+      // Switched off in Settings: the sessions are still counted, the chain is not shown.
+      const streak = (window.Prefs && Prefs.get('streak') === 'off') ? 0 : computeStreak(sessions);
       const label = streak > 0
         ? t('focus.streak', { n: streak, days: streak === 1 ? t('history.dayOne') : t('history.dayMany') })
         : t('focus.sessionsLogged', { n: sessions.length });
@@ -172,7 +182,9 @@ const Focus = (() => {
     const request = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Auth.getToken()}` },
-      body: JSON.stringify({ duration_seconds: durationSeconds, focus_pct: focusPct }),
+      // presence_pct: the share of the watched time a person was at the desk.
+      // focus_pct is the same number under its old name, for servers not yet updated.
+      body: JSON.stringify({ duration_seconds: durationSeconds, presence_pct: focusPct, focus_pct: focusPct }),
     };
     if (closing) {
       try { fetch(BACKEND + '/focus', { ...request, keepalive: true }).catch(() => {}); } catch { /* nothing to do on the way out */ }
@@ -529,6 +541,31 @@ const Focus = (() => {
     startTracking();
   }
 
+  // The timer without the camera. The camera is an extra, not a condition: a
+  // student who would rather not be on camera still gets the clock, the
+  // breaks, the history and the streak.
+  function startPlainSession() {
+    if (starting || stream || sessionStart) return;
+    noCamera = true;
+    clearIdentity();
+    clearError();
+    sessionStart = Date.now();
+    startBeat();
+    verificationPauseMs = 0;
+    breakStartedAt = null;
+    breakPauseMs = 0;
+    focusedMs = 0;
+    awayMs = 0;
+    document.body.classList.add('focus-live');
+    window.dispatchEvent(new CustomEvent('climby:focus-live'));
+    showStage('Running');
+    $('focusRunning').classList.add('focus-plain');
+    updateToggleUI();
+    $('focusStatus').textContent = t('focus.plainStatus');
+    $('focusBadge').classList.remove('hidden');
+    startBadgeClock();
+  }
+
   // A start that was overtaken while it waited. Its camera goes back at once,
   // and the screen must not stay on "Loading": leaving the tab mid-start used to
   // do exactly that, and coming back showed a spinner for a session that never
@@ -565,8 +602,6 @@ const Focus = (() => {
   const DETECT_MS = 160;          // колко често пускаме модела
   const SMOOTH = 0.35;            // плъзгаща средна на сигналите
   const POINT_SMOOTH = 0.45;      // догонване на точките при рисуване
-  const EAR_CLOSED = 0.19;        // под това окото се води затворено
-  const BLINK_GRACE_MS = 500;     // затворени очи дотук още не са "не гледа"
   const LOST_GRACE_MS = 3000;     // липсващо лице дотук още не е "излязъл" —
                                   // поглед към учебника трае толкова
   const ENTER_FOCUS = 0.62;
@@ -580,8 +615,7 @@ const Focus = (() => {
   let drawPoints = null;          // изгладените, които реално рисуваме
   let faceBox = null, drawBox = null;
   let lastSeen = 0;
-  let eyesClosedSince = 0;
-  let scores = { eyes: 0, gaze: 0, near: 0 };
+  let scores = { near: 0 };
   let focusScore = 0;
   let isFocused = false;
   let lastTickAt = 0;
@@ -593,29 +627,12 @@ const Focus = (() => {
   const lerp = (a, b, t) => a + (b - a) * t;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-  // Отношението височина/ширина на окото: отворено е около 0.30, затворено пада
-  // към 0.10. Затова мигането личи като рязък спад, а не като изчезнало лице.
-  function eyeAspect(e) {
-    const wide = dist(e[0], e[3]) || 1;
-    return (dist(e[1], e[5]) + dist(e[2], e[4])) / (2 * wide);
-  }
-
-  // Накъде гледа главата. Носът стои по средата между очите, когато гледаш
-  // право напред; извърнеш ли се, се измества спрямо тях.
-  function gazeScore(pts, box) {
-    const eyesMid = {
-      x: (pts.leftEye[0].x + pts.rightEye[3].x) / 2,
-      y: (pts.leftEye[0].y + pts.rightEye[3].y) / 2,
-    };
-    const tip = pts.nose[pts.nose.length - 1] || pts.nose[0];
-    const yaw = Math.abs(tip.x - eyesMid.x) / (box.width || 1);
-    const pitch = Math.abs(tip.y - eyesMid.y) / (box.height || 1);
-    // Мъртва зона 12% и нула чак при 34%: половин обръщане на главата към
-    // тетрадката не е "не гледа". Старите 5%/19% гасяха сесията от един поглед.
-    return Math.max(0, 1 - Math.max(0, yaw - 0.12) / 0.22) *
-           Math.max(0, 1 - Math.max(0, pitch - 0.30) / 0.42);
-  }
-
+  // What the camera counts is whether a person is at the desk — nothing else.
+  // It used to weigh open eyes and the direction of the head into a "focus"
+  // number. Inferring a student's attention from a camera is a prohibited AI
+  // practice in EU education settings (AI Act, Art. 5(1)(f)), and it is not
+  // what the screens promise ("time at your desk"). The face outline is still
+  // found, only so the frame can be drawn around it.
   function sizeOverlay(video, canvas) {
     if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
     if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
@@ -645,7 +662,7 @@ const Focus = (() => {
       // Лицето може да липсва за миг, защото ученикът се е навел към тетрадката.
       // Гратисът пази точно този случай, вместо веднага да го брои за отсъствие.
       if (now - lastSeen > LOST_GRACE_MS) {
-        scores = { eyes: 0, gaze: 0, near: 0 };
+        scores = { near: 0 };
         landmarks = null;
         faceBox = null;
       }
@@ -655,27 +672,9 @@ const Focus = (() => {
     landmarks = found;
     faceBox = found.box;
 
-    // Наведена към учебника глава свива очите в кадъра и моделът ги чете като
-    // затворени — а ученик, който чете, е точно това, което искаме да броим.
-    // Затова при наклон отвъд мъртвата зона на gazeScore не вярваме на очите
-    // изобщо: наклонът се оценява там, с плавен спад, а не тук, с гилотина.
-    const eyesMidY = (found.leftEye[0].y + found.rightEye[3].y) / 2;
-    const tipY = (found.nose[found.nose.length - 1] || found.nose[0]).y;
-    const lookingDown = Math.abs(tipY - eyesMidY) / (found.box.height || 1) > 0.30;
-    const ear = lookingDown ? 1 : (eyeAspect(found.leftEye) + eyeAspect(found.rightEye)) / 2;
-    if (ear < EAR_CLOSED) {
-      if (!eyesClosedSince) eyesClosedSince = now;
-    } else {
-      eyesClosedSince = 0;
-    }
-    const blinking = eyesClosedSince && (now - eyesClosedSince) < BLINK_GRACE_MS;
-    const eyesOpen = (ear >= EAR_CLOSED || blinking) ? 1 : 0;
-
     const frac = (found.box.width * found.box.height) /
                  ((video.videoWidth * video.videoHeight) || 1);
-
-    scores.eyes = lerp(scores.eyes, eyesOpen, SMOOTH);
-    scores.gaze = lerp(scores.gaze, gazeScore(found, found.box), SMOOTH);
+    // Someone passing far behind the chair is not the student at the desk.
     scores.near = lerp(scores.near, Math.min(1, frac / MIN_FACE_FRAC), SMOOTH);
   }
 
@@ -688,7 +687,7 @@ const Focus = (() => {
 
   function updateState(now) {
     const present = landmarks ? 1 : 0;
-    const raw = present * (0.45 * scores.eyes + 0.40 * scores.gaze + 0.15 * scores.near);
+    const raw = present * scores.near;
     focusScore = lerp(focusScore, raw, SMOOTH);
     const was = isFocused;
     if (!isFocused && focusScore >= ENTER_FOCUS) isFocused = true;
@@ -1081,8 +1080,7 @@ const Focus = (() => {
     identityCheckPending = false;
     lastSeen = performance.now();
     landmarks = null; drawPoints = null; faceBox = null; drawBox = null;
-    eyesClosedSince = 0;
-    scores = { eyes: 0, gaze: 0, near: 0 };
+    scores = { near: 0 };
     focusScore = 0;
     isFocused = false;
     presence = 0; mood = 0; strength = 0; acquiredAt = 0;
@@ -1172,7 +1170,7 @@ const Focus = (() => {
   }
 
   async function resumeCameraFlow() {
-    if (stream || starting || !sessionStart || !isEnabled()) return;
+    if (noCamera || stream || starting || !sessionStart || !isEnabled()) return;
     starting = true;
     const attempt = ++startId;
     showStage('Loading');
@@ -1216,7 +1214,7 @@ const Focus = (() => {
     lastTickAt = performance.now();
     const badgeLabel = $('focusBadge').querySelector('.focus-badge-text > span');
     if (badgeLabel) badgeLabel.textContent = verificationPausedAt === null ? t('focus.badge') : t('focus.badgePaused');
-    if (verificationPausedAt === null) $('focusStatus').textContent = t('focus.runningStatus');
+    if (verificationPausedAt === null) $('focusStatus').textContent = t(noCamera ? 'focus.plainStatus' : 'focus.runningStatus');
     paintBadge();
     return true;
   }
@@ -1243,6 +1241,9 @@ const Focus = (() => {
       return;
     }
     sessionStart = null;
+    const plain = noCamera;
+    noCamera = false;
+    $('focusRunning').classList.remove('focus-plain');
     stopBeat();
     clearIdentity();
     verificationPauseMs = 0;
@@ -1257,7 +1258,7 @@ const Focus = (() => {
       showStage('Idle');
     } else {
       saveSession(totalMs);
-      showSummary(totalMs);
+      showSummary(totalMs, plain);
     }
   }
 
@@ -1267,7 +1268,7 @@ const Focus = (() => {
     return `${mins} ${mins === 1 ? t('focus.minuteOne') : t('focus.minuteMany')}`;
   }
 
-  function showSummary(totalMs) {
+  function showSummary(totalMs, plain) {
     ['Idle', 'Loading', 'Running'].forEach(s => $(`focus${s}`).classList.add('hidden'));
     const trackedMs = focusedMs + awayMs;
     const pct = trackedMs ? Math.round((focusedMs / trackedMs) * 100) : null;
@@ -1277,7 +1278,9 @@ const Focus = (() => {
     // процент няма — тогава се казва само колко е траяла. Проверката е през самия
     // pct, за да не може по-долните прагове да получат null и да сравняват с него.
     let message;
-    if (pct === null) {
+    if (plain) {
+      message = t('focus.summaryPlain', { time });
+    } else if (pct === null) {
       message = t('focus.summaryShort', { time });
     } else if (pct >= 80) {
       message = t('focus.summaryGreat', { time, pct });
@@ -1295,6 +1298,7 @@ const Focus = (() => {
     initView();
     $('focusEnableToggle').addEventListener('change', e => setEnabled(e.target.checked));
     $('focusStartBtn').addEventListener('click', startSession);
+    $('focusPlainBtn').addEventListener('click', startPlainSession);
     $('focusStopBtn').addEventListener('click', () => stopSession(false));
     $('focusVerifyResumeBtn').addEventListener('click', verifyAndResume);
     $('focusAgainBtn').addEventListener('click', () => showStage('Idle'));
@@ -1323,6 +1327,7 @@ const Focus = (() => {
       }
     });
     window.addEventListener('climby:auth-changed', renderStreak);
+    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak' || e.detail.key === 'rest') renderStreak(); });
     // Спиране отвсякъде. Води и до раздела, защото там е обобщението — иначе
     // сесията свършва и нищо не казва колко е станала.
     const badgeStop = document.getElementById('focusBadgeStop');

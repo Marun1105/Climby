@@ -35,7 +35,7 @@ def create_session(
     session = FocusSession(
         user_id=user.id,
         duration_seconds=max(0, body.duration_seconds),
-        focus_pct=body.focus_pct,
+        presence_pct=body.presence_pct if body.presence_pct is not None else body.focus_pct,
     )
     db.add(session)
     db.flush()

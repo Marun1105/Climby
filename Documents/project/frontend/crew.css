@@ -527,3 +527,11 @@
 .crew-go { width: 100%; margin-top: 4px; }
 .crew-go[disabled] { opacity: .6; }
 .crew-at input[readonly] { color: #6b6585; }
+
+/* What friends may see of you: two switches on your own card, both off at first. */
+.crew-private { margin: 14px 0 0; font: 500 13px var(--font-body); color: #6b6585; text-align: center; }
+.crew-sharing { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #f6f4fd; text-align: left; }
+.crew-sharing-title { margin: 0 0 8px; font: 800 12px var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: #6b6585; }
+.crew-share-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; min-height: 24px; font: 500 14px var(--font-body); color: #2a2540; cursor: pointer; }
+.crew-share-row input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: #7c5cff; }
+.crew-sharing-note { margin: 6px 0 0; font: 500 12.5px var(--font-body); color: #6b6585; }

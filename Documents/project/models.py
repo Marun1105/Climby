@@ -4,12 +4,14 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    false,
     Boolean,
     Column,
     Date,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -52,6 +54,9 @@ class User(Base):
     # like a picture book or a textbook. Both optional; both editable later.
     grade = Column(Integer, nullable=True)
     city = Column(String, nullable=True)
+    # Asked together with the town and the grade in the first-sign-in questions.
+    country = Column(String, nullable=True)
+    school = Column(String, nullable=True)
     # When this person ticked "I agree to the Terms and the Privacy policy (and,
     # under 14, a parent agrees)". The record that they did, and when.
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
@@ -137,6 +142,9 @@ class FamilyLink(Base):
     """Връзка родител -> ученик. Ролята не се пази в users: родител е този,
     който има поне една такава връзка — така не е нужна миграция на съществуващата таблица."""
     __tablename__ = "family_links"
+    # One link per pair. Without it two codes redeemed at the same moment made
+    # two links, and removing one left the parent still seeing the child.
+    __table_args__ = (UniqueConstraint("parent_user_id", "student_user_id", name="uq_family_link_pair"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     parent_user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
@@ -162,6 +170,7 @@ class Classroom(Base):
 
 class ClassroomMember(Base):
     __tablename__ = "classroom_members"
+    __table_args__ = (UniqueConstraint("classroom_id", "student_user_id", name="uq_classroom_member_pair"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     classroom_id = Column(String, ForeignKey("classrooms.id"), nullable=False, index=True)
@@ -171,16 +180,22 @@ class ClassroomMember(Base):
 
 class FocusSession(Base):
     __tablename__ = "focus_sessions"
+    # every list and every total reads "this person, newest first"
+    __table_args__ = (Index("ix_focus_sessions_user_created", "user_id", "created_at"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     duration_seconds = Column(Integer, nullable=False)
-    focus_pct = Column(Integer, nullable=True)
+    # The share of the watched time a person was at the desk — presence, never
+    # attention. The column keeps its first name ("focus_pct") so no migration
+    # is needed; nothing in the code calls it that any more.
+    presence_pct = Column("focus_pct", Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)
 
 
 class ScanHistory(Base):
     __tablename__ = "scan_history"
+    __table_args__ = (Index("ix_scan_history_user_created", "user_id", "created_at"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
@@ -369,6 +384,11 @@ class SocialProfile(Base):
     # closed laptop stops glowing within minutes, not never.
     live_since = Column(DateTime(timezone=True), nullable=True)
     live_until = Column(DateTime(timezone=True), nullable=True)
+    # What friends may see, each its own choice and both off until the student
+    # turns them on: that a study session is running, and the weekly points
+    # and streak. Off is the default for everyone under 18 — which is everyone.
+    share_live = Column(Boolean, nullable=False, default=False, server_default=false())
+    share_points = Column(Boolean, nullable=False, default=False, server_default=false())
     created_at = Column(DateTime(timezone=True), default=_now)
 
 
@@ -410,7 +430,8 @@ class HoldEntry(Base):
     done on time, the same day's streak can pay once and only once, however many
     times the request that earns it is retried."""
     __tablename__ = "hold_entries"
-    __table_args__ = (UniqueConstraint("user_id", "reason", "ref", name="uq_hold_once"),)
+    __table_args__ = (UniqueConstraint("user_id", "reason", "ref", name="uq_hold_once"),
+                      Index("ix_hold_entries_user_created", "user_id", "created_at"))
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)

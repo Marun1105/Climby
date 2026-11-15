@@ -62,7 +62,28 @@
 
 <div id="entryGate" class="entry-gate">
   <button id="entryGateClose" class="entry-gate-close" type="button" data-i18n-aria="entry.skipAria" aria-label="Продължи без вход">✕</button>
-  <div class="auth-card entry-gate-card">
+  <!-- The first thing a new person sees: what Climby is, in one breath, and one
+       clear button. welcome.js reveals the headline word by word. Someone who has
+       signed in on this computer before goes straight to the sign-in form. -->
+  <div id="welcomePanel" class="welcome hidden">
+    <span class="welcome-logo"><img src="logo.png" alt="" width="104" height="104"></span>
+    <h1 id="welcomeTitle" class="welcome-title" data-i18n="welcome.title">Homework that finally makes sense.</h1>
+    <p class="welcome-sub" data-i18n="welcome.sub">Photograph a problem. ClimbAI explains it step by step, until it clicks.</p>
+    <ul class="welcome-points">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg><span data-i18n="welcome.point1">Explains the way, not just the answer</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><path d="m3 6.5 1.4 1.4L7 5.4"/><path d="m3 12 1.4 1.4L7 10.9"/><path d="m3 17.5 1.4 1.4L7 16.4"/></svg><span data-i18n="welcome.point2">Keeps your homework in order</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span data-i18n="welcome.point3">A quiet timer for when you study</span></li>
+    </ul>
+    <button id="welcomeStart" class="btn-primary welcome-cta" type="button">
+      <span data-i18n="welcome.start">Get started</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <p class="welcome-small" data-i18n="welcome.free">Free. Takes about a minute.</p>
+    <p class="auth-switch"><span data-i18n="auth.haveAccount">Вече имаш акаунт?</span> <a href="#" id="welcomeLogin" data-i18n="auth.loginLink">Влез</a></p>
+    <button id="welcomeGuest" class="welcome-guest" type="button" data-i18n="welcome.guest">Look around without an account</button>
+  </div>
+
+  <div id="entryGateCard" class="auth-card entry-gate-card">
     <div class="entry-gate-brand">
       <span class="sidebar-logo"><img src="logo-icon.png" alt=""></span>
       <div class="brand">
@@ -74,7 +95,7 @@
     <div id="authIntro" class="explainer">
       <strong data-i18n="auth.why">Защо трябва да влезеш:</strong> <span data-i18n="auth.entryWhyBody">за да пазим чеклиста и историята ти в акаунт, видими от всяко устройство.</span>
     </div>
-    <p class="auth-security-note" data-i18n="auth.securityNote">Връзката е защитена с HTTPS, а паролите се пазят като еднопосочни хешове. Данните в акаунта не са криптирани от край до край — Climby трябва да ги обработва, за да работи.</p>
+    <p id="authSecurityNote" class="auth-security-note" data-i18n="auth.securityNote">Връзката е защитена с HTTPS, а паролите се пазят като еднопосочни хешове. Данните в акаунта не са криптирани от край до край — Climby трябва да ги обработва, за да работи.</p>
 
     <form novalidate id="loginForm" class="auth-form">
       <div class="field">
@@ -106,64 +127,47 @@
     </form>
 
     <form novalidate id="registerForm" class="auth-form hidden">
-      <div class="field">
-        <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>
-        <input id="registerName" type="text" placeholder=" " autocomplete="given-name">
-        <label for="registerName" data-i18n="auth.nameLabel">Как да те наричаме?</label>
-      </div>
+      <h2 class="auth-title" data-i18n="auth.registerTitle">Create your account</h2>
+      <p class="auth-lede" data-i18n="auth.registerLede">Four fields now. The rest we ask after you sign in — and you can skip it.</p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/><circle cx="12" cy="8" r="4"/><path d="M2 12h3"/></svg></span>
         <input id="registerUsername" type="text" placeholder=" " autocomplete="username" maxlength="20">
-        <label for="registerUsername" data-i18n="auth.usernameLabel">Потребителско име (по желание)</label>
+        <label for="registerUsername" data-i18n="auth.usernameLabel">Потребителско име</label>
       </div>
+      <!-- Said next to the field a moment after typing stops: free, taken (with free ones to pick), or the rule. -->
+      <p id="registerUsernameStatus" class="field-status hidden" role="status" aria-live="polite"></p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
         <input id="registerEmail" type="email" placeholder=" " autocomplete="email">
         <label for="registerEmail" data-i18n="auth.email">Имейл</label>
       </div>
+      <!-- Checked when the field is left, never while it is first being typed. -->
+      <p id="registerEmailStatus" class="field-status hidden" role="status" aria-live="polite"></p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span>
         <input id="registerPhone" type="tel" placeholder=" " autocomplete="tel" maxlength="32">
         <label for="registerPhone" data-i18n="auth.phoneLabel">Телефон (по желание)</label>
       </div>
+      <p id="registerPhoneStatus" class="field-status hidden" role="status" aria-live="polite"></p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
         <input id="registerPassword" type="password" placeholder=" " autocomplete="new-password">
         <label for="registerPassword" data-i18n="auth.password">Парола</label>
       </div>
+      <!-- The rule is said before anyone types, not only after they get it wrong. -->
+      <p id="registerPwHint" class="field-hint" data-i18n="auth.pwHint">At least 8 characters. A longer phrase is stronger than symbols.</p>
       <div id="registerPwStrength" class="pw-strength hidden">
         <div class="pw-strength-track"><span id="registerPwBar" class="pw-strength-fill"></span></div>
         <span id="registerPwLabel" class="pw-strength-label"></span>
       </div>
-      <fieldset class="role-choice">
-        <legend data-i18n="auth.roleLegend">Кой си ти?</legend>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="student" checked>
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleStudent">Ученик</span>
-            <span class="role-hint" data-i18n="auth.roleStudentHint">Сканирай задачи, води чеклист, гледай напредъка си.</span>
-          </span>
+      <div class="consent-box">
+        <label class="remember-row terms-row">
+          <input id="registerTerms" type="checkbox">
+          <span class="remember-box"></span>
+          <span><span data-i18n="auth.termsAgree">I agree to the</span> <a href="https://marun1105.github.io/my-project/terms.html" target="_blank" rel="noopener" data-i18n="auth.termsLink">Terms</a> <span data-i18n="auth.termsAnd">and the</span> <a href="https://marun1105.github.io/my-project/privacy.html" target="_blank" rel="noopener" data-i18n="privacy.link">Privacy policy</a><span data-i18n="auth.termsUnder14">. If I'm under 14, a parent or guardian agrees too.</span></span>
         </label>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="parent">
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleParent">Родител</span>
-            <span class="role-hint" data-i18n="auth.roleParentHint">Свържи се с детето си по код и виж как върви.</span>
-          </span>
-        </label>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="teacher">
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleTeacher">Учител</span>
-            <span class="role-hint" data-i18n="auth.roleTeacherHint">Направи клас и следи целия клас наведнъж.</span>
-          </span>
-        </label>
-      </fieldset>
-      <label class="remember-row terms-row">
-        <input id="registerTerms" type="checkbox">
-        <span class="remember-box"></span>
-        <span><span data-i18n="auth.termsAgree">I agree to the</span> <a href="https://marun1105.github.io/my-project/terms.html" target="_blank" rel="noopener" data-i18n="auth.termsLink">Terms</a> <span data-i18n="auth.termsAnd">and the</span> <a href="https://marun1105.github.io/my-project/privacy.html" target="_blank" rel="noopener" data-i18n="privacy.link">Privacy policy</a><span data-i18n="auth.termsUnder14">. If I'm under 14, a parent or guardian agrees too.</span></span>
-      </label>
+        <p class="consent-safe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="auth.consentSafe">Your information is safe: sent over a protected connection, never sold, and yours to download or delete.</span></p>
+      </div>
       <button id="registerBtn" class="btn-primary" type="submit" data-i18n="auth.registerBtn">Регистрирай се</button>
       <p class="auth-switch"><span data-i18n="auth.haveAccount">Вече имаш акаунт?</span> <a href="#" id="showLogin" data-i18n="auth.loginLink">Влез</a></p>
     </form>
@@ -293,6 +297,7 @@
       <button type="button" class="settings-nav-link" data-settings-jump="setTutor"><span class="ai-name" data-i18n="settings.secTutor">ClimbAI</span></button>
       <button type="button" class="settings-nav-link" data-settings-jump="setFamily" data-settings-role="parent student" data-i18n="nav.family">Family</button>
       <button type="button" class="settings-nav-link" data-settings-jump="setClass" data-settings-role="teacher student" data-i18n="nav.classes">Class</button>
+      <button type="button" class="settings-nav-link" data-settings-jump="setWhoSees" data-settings-role="student" data-i18n="whosees.title">Кой какво вижда</button>
       <button type="button" class="settings-nav-link" data-settings-jump="setApp" data-i18n="settings.secApp">The app</button>
     </nav>
     <div class="settings-main">
@@ -492,6 +497,26 @@
       </div>
       <p class="settings-note" data-i18n="settings.readingNote">Wider letters and taller lines — easier on the eyes, especially with dyslexia.</p>
     </div>
+    <div class="settings-row" data-icon="flame">
+      <span class="settings-label" data-i18n="settings.streak">Дни подред</span>
+      <div class="settings-control">
+        <select class="settings-select" data-pref="streak" data-i18n-aria-label="settings.streak" aria-label="Days in a row">
+          <option value="on" data-i18n="settings.streakOn">Показвай</option>
+          <option value="off" data-i18n="settings.streakOff">Не показвай</option>
+        </select>
+      </div>
+      <p class="settings-note" data-i18n="settings.streakNote">Броят на дните подред е за теб. Ако те притеснява, изключи го — учебните ти дни пак се броят.</p>
+    </div>
+    <div class="settings-row" data-icon="sky">
+      <span class="settings-label" data-i18n="settings.rest">Почивни дни</span>
+      <div class="settings-control">
+        <select class="settings-select" data-pref="rest" data-i18n-aria-label="settings.rest" aria-label="Rest days">
+          <option value="none" data-i18n="settings.restNone">Няма</option>
+          <option value="weekend" data-i18n="settings.restWeekend">Събота и неделя</option>
+        </select>
+      </div>
+      <p class="settings-note" data-i18n="settings.restNote">Почивен ден не прекъсва поредицата. Ако учиш в него, пак се брои.</p>
+    </div>
     </section>
     <section class="settings-group" id="setTutor">
     <h3 class="settings-section"><span class="ai-name" data-i18n="settings.secTutor">ClimbAI</span></h3>
@@ -511,6 +536,16 @@
         <select class="settings-select" data-pref="autoread" data-i18n-aria-label="settings.autoread" aria-label="Read aloud">
           <option value="off" data-i18n="settings.autoreadOff">Only with the button</option>
           <option value="on" data-i18n="settings.autoreadOn">Every answer</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-row" data-icon="speaker">
+      <span class="settings-label" data-i18n="settings.speed">Скорост на четене</span>
+      <div class="settings-control">
+        <select class="settings-select" data-pref="speed" data-i18n-aria-label="settings.speed" aria-label="Reading speed">
+          <option value="0.8" data-i18n="settings.speedSlow">По-бавно</option>
+          <option value="1" data-i18n="settings.speedNormal">Нормално</option>
+          <option value="1.25" data-i18n="settings.speedFast">По-бързо</option>
         </select>
       </div>
     </div>
@@ -655,6 +690,38 @@
     <div id="studentClassesEmpty" class="empty-state hidden"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 2.5 9 12 13.8 21.5 9z"/><path d="M6.5 11.3V16c0 1.7 2.5 3 5.5 3s5.5-1.3 5.5-3v-4.7"/></svg></span><p class="empty-title" data-i18n="classes.emptyStudent">Още не си в клас. Поискай код от учителя си.</p></div>
   </div>
     </section>
+    <!-- Who can see what: one place, in plain words, with the live state of
+         every optional switch. Filled by whosees.js. -->
+    <section class="settings-group" id="setWhoSees" data-settings-role="student">
+      <h3 class="settings-section" data-icon="eye" data-i18n="whosees.title">Кой какво вижда</h3>
+      <div class="whosees">
+        <div class="whosees-block whosees-never">
+          <strong data-i18n="whosees.neverTitle">Какво никога не правим</strong>
+          <ul>
+            <li data-i18n="whosees.never1">Не показваме реклами и не продаваме данни.</li>
+            <li data-i18n="whosees.never2">Кадрите от камерата не напускат това устройство и не се пазят.</li>
+            <li data-i18n="whosees.never3">Родители и учители не виждат въпросите ти към ClimbAI, нито текста на задачите ти.</li>
+            <li data-i18n="whosees.never4">Никой освен теб не вижда колко от времето си бил на бюрото.</li>
+          </ul>
+        </div>
+        <div class="whosees-block">
+          <strong data-i18n="whosees.friendsTitle">Приятели</strong>
+          <p data-i18n="whosees.friendsAlways">Виждат името, снимката и класа ти — само след като сте се приели взаимно.</p>
+          <p><span data-i18n="whosees.friendsLive">Че учиш в момента:</span> <b id="whoseesLive">—</b></p>
+          <p><span data-i18n="whosees.friendsPoints">Точките ти и дните подред:</span> <b id="whoseesPoints">—</b></p>
+          <button id="whoseesFriendsBtn" class="btn-secondary" type="button" data-i18n="whosees.friendsBtn">Промени в „Приятели“</button>
+        </div>
+        <div class="whosees-block">
+          <strong data-i18n="whosees.adultsTitle">Родител или учител, с когото си се свързал с код</strong>
+          <p data-i18n="whosees.adultsSee">Виждат само числа: колко задачи са свършени, колко чакат и колко са закъснели, колко минути си учил през последните 7 дни и колко дни подред.</p>
+          <p data-i18n="whosees.adultsHow">Свързват се само когато ти им покажеш код. Можеш да прекъснеш връзката по всяко време от „Семейство“ или „Клас“.</p>
+        </div>
+        <div class="whosees-block">
+          <strong class="ai-name" data-i18n="whosees.aiTitle">ClimbAI</strong>
+          <p data-i18n="whosees.aiSee">Получава въпроса ти и снимката, която пращаш. Какво още знае за теб, избираш в „Памет на ClimbAI“ — там виждаш и точния текст.</p>
+        </div>
+      </div>
+    </section>
     <section class="settings-group" id="setApp">
     <h3 class="settings-section" data-i18n="settings.secApp">The app</h3>
     <div class="settings-row" data-icon="compass">
@@ -667,7 +734,7 @@
     </div>
     <div class="settings-row" data-icon="bell">
       <span><span data-i18n="hw.setting">Homework reminders</span><br><small class="settings-note" data-i18n="hw.settingHint">In the evening, when something is due tomorrow — at most twice, never during a focus session.</small></span>
-      <label class="switch"><input id="hwRemindOn" type="checkbox" role="switch" data-i18n-aria-label="hw.setting" aria-label="Homework reminders" checked><span class="switch-track"></span></label>
+      <label class="switch"><input id="hwRemindOn" type="checkbox" role="switch" data-i18n-aria-label="hw.setting" aria-label="Homework reminders"><span class="switch-track"></span></label>
     </div>
     <div class="settings-row" data-icon="book">
       <span><span data-i18n="privacy.title">Privacy</span><br><small class="settings-note" data-i18n="privacy.hint">What Climby keeps, who else sees it, and how to have it deleted.</small></span>
@@ -792,10 +859,13 @@
   <div id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="onboarding-card">
       <div id="onboardingSteps" class="onboarding-steps"></div>
+        <p id="onboardingCount" class="onboarding-count" aria-hidden="true"></p>
       <div class="onboarding-icon" id="onboardingIcon" aria-hidden="true"></div>
       <h2 id="onboardingTitle" class="onboarding-title">Добре дошъл в Climby</h2>
       <p id="onboardingBody" class="onboarding-body">Снимай задача от учебника и AI учителят ще ти обясни стъпка по стъпка.</p>
       <div id="onboardingChoices" class="onboarding-choices hidden"></div>
+      <div id="onboardingFields" class="onboarding-fields hidden"></div>
+      <p id="onboardingError" class="settings-note is-error hidden" role="alert"></p>
       <div class="onboarding-actions">
         <button id="onboardingSkip" class="btn-ghost" type="button" data-i18n="onboarding.skip">Пропусни</button>
         <button id="onboardingNext" class="btn-primary" type="button" data-i18n="onboarding.next">Напред</button>
@@ -1090,7 +1160,7 @@
     <button type="button" class="quick" data-quick="scanner.quickHint" data-i18n="scanner.quickHintBtn">Само подсказка</button>
     <button type="button" class="quick" data-quick="scanner.quickWhy" data-i18n="scanner.quickWhyBtn">Защо е така?</button>
   </div>
-  <textarea id="question" data-i18n-placeholder="scanner.questionPlaceholder" placeholder="Напр. „Как се решава задача 5?“ или „Провери решението ми“"></textarea>
+  <textarea id="question" data-i18n-aria-label="scanner.questionPlaceholder" aria-label="Your question" data-i18n-placeholder="scanner.questionPlaceholder" placeholder="Напр. „Как се решава задача 5?“ или „Провери решението ми“"></textarea>
   <div class="composer-actions">
     <span class="composer-hint" data-i18n="scanner.composerHint">Enter изпраща · Shift+Enter нов ред</span>
     <button id="askBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.askBtn">Питай</span></button>
@@ -1105,13 +1175,26 @@
     <span class="read-panel-hint" data-i18n="scanner.readHint">Check it matches your page</span>
   </summary>
   <div class="read-body"></div>
+  <div class="read-actions"><button id="readFixBtn" type="button" class="wait-cancel" data-i18n="scanner.readFix">Не е вярно? Поправи го</button></div>
 </details>
 <div id="answer" class="card answer hidden" role="status" aria-live="polite"></div>
 <!-- The rest of the conversation: the student's replies and the tutor's answers,
      in order. The reply box appears once there is something to reply to. -->
 <div id="thread" class="thread"></div>
+<!-- To a guest, once, after the first answer. Dismissed with one press. -->
+<div id="guestKeep" class="guest-keep hidden" role="note">
+  <span data-i18n="scanner.guestKeep">Направи си акаунт, за да запазиш този отговор.</span>
+  <button id="guestKeepBtn" type="button" class="quick-reply" data-i18n="scanner.guestKeepBtn">Създай акаунт</button>
+  <button id="guestKeepClose" type="button" class="guest-keep-close" data-i18n-aria-label="scanner.guestKeepClose" aria-label="Затвори">✕</button>
+</div>
 <div id="followUp" class="follow-up hidden">
-  <textarea id="followQuestion" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
+  <div class="quick-replies" role="group" data-i18n-aria-label="scanner.quickLabel" aria-label="Бързи въпроси">
+    <button id="explainAgainBtn" type="button" class="quick-reply" data-i18n="scanner.explainAgain">Обясни по друг начин</button>
+    <button id="fullSolutionBtn" type="button" class="quick-reply hidden" data-i18n="scanner.fullSolution">Покажи цялото решение</button>
+    <span id="solutionGate" class="solution-gate" data-i18n="scanner.solutionGate">Опитай една стъпка и напиши какво получи — после можеш да видиш цялото решение. Така се помни по-дълго.</span>
+  </div>
+  <p class="ai-note" data-i18n="scanner.aiNote">ClimbAI е изкуствен интелект и може да сгреши — да прочете грешно снимка или да обърка сметка. Провери важните стъпки.</p>
+  <textarea id="followQuestion" data-i18n-aria-label="scanner.followUpPlaceholder" aria-label="Reply, or ask more" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
   <button id="followBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.followUpBtn">Send</span></button>
 </div>
 
@@ -1290,6 +1373,8 @@
     <div class="focus-safety" aria-label="Camera privacy" data-i18n-aria-label="focus.safetyAria">
       <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraLocal">Camera processing stays on this device.</span></p>
       <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraNotStored">Camera frames are not uploaded or saved.</span></p>
+      <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraPresence">Камерата брои само дали има човек на бюрото — не накъде гледаш, не настроение, не внимание.</span></p>
+      <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraOptional">Камерата е по избор: „Започни без камера“ пуска същия брояч без нея. Ако си под 14, питай родител, преди да я включиш.</span></p>
       <p class="focus-safety-caveat"><span class="focus-safety-warning" aria-hidden="true">!</span><span data-i18n="focus.cameraLimit">Face matching is a session check, not secure identity authentication or liveness detection.</span></p>
     </div>
   </div>
@@ -1297,6 +1382,7 @@
   <div id="focusIdle" class="focus-stage hidden">
     <div class="controls">
       <button id="focusStartBtn" class="btn-primary" type="button" data-i18n="focus.startBtn">Започни сесия</button>
+      <button id="focusPlainBtn" class="btn-ghost" type="button" data-i18n="focus.plainBtn">Започни без камера</button>
     </div>
   </div>
 
@@ -1478,7 +1564,7 @@
     <p id="chatSees" class="chat-sees hidden" data-i18n="chat.sees">ClimbAI only uses the app details you selected in Settings.</p>
   </div>
   <div class="chat-input-row">
-    <textarea id="chatInput" rows="1" data-i18n-placeholder="chat.placeholder" placeholder="Напиши въпрос…"></textarea>
+    <textarea id="chatInput" data-i18n-aria-label="chat.placeholder" aria-label="Write a question" rows="1" data-i18n-placeholder="chat.placeholder" placeholder="Напиши въпрос…"></textarea>
     <button id="chatSend" class="btn-ai chat-send" type="button" data-i18n-aria="chat.send" aria-label="Изпрати">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
     </button>
@@ -1529,7 +1615,9 @@
 <script src="sessions.js"></script>
 <script src="mirror.js"></script>
 <script src="family.js"></script>
+<script src="whosees.js"></script>
 <script src="classes.js"></script>
+<script src="welcome.js"></script>
 <script src="onboarding.js"></script>
 <script src="tour.js"></script>
 <script>

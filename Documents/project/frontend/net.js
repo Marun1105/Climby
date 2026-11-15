@@ -43,10 +43,18 @@ const Net = (() => {
   async function _fetch(url, options = {}, timeoutMs = ATTEMPT_TIMEOUT_MS) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // The caller's own signal (a Cancel button) stops the request too.
+    const outer = options.signal;
+    const onOuter = () => controller.abort();
+    if (outer) {
+      if (outer.aborted) controller.abort();
+      else outer.addEventListener('abort', onOuter, { once: true });
+    }
     try {
       return await fetch(url, { ...options, signal: controller.signal });
     } finally {
       clearTimeout(timer);
+      if (outer) outer.removeEventListener('abort', onOuter);
     }
   }
 
@@ -99,6 +107,8 @@ const Net = (() => {
       try {
         res = await _fetch(url, init, timeout);
       } catch (err) {
+        // Cancelled by the person: nothing to wake, nothing to retry.
+        if (init.signal && init.signal.aborted) throw err;
         // Мрежова грешка: повтаряме само ако сървърът наистина е бил долу.
         if (await _isAwake()) throw err;
         if (!(await _waitForWake(loading))) throw err;

@@ -66,6 +66,11 @@ Reply in exactly three parts and nothing else.
 <read>
 In {language}. Every problem on the page, by its number: what is given and what
 is asked. Say plainly what is illegible, cut off, or insufficient as written.
+Where you are not sure of one symbol, digit or word, do not guess silently: write
+your best reading and say in words what you were unsure of and why ("the
+exponent could be 2 or 3 — the handwriting is unclear"). Never a percentage. If
+the photo cannot be used, name the cause and the next step ("the bottom line is
+cut off — retake the photo, or type the last line").
 Compact — this is shown to the student so they can check you read it right.
 </read>
 

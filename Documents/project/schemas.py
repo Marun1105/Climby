@@ -3,7 +3,9 @@ import re
 from datetime import date, datetime
 from typing import List, Literal, Optional
 
-from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field_validator
+import security
+
+from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field_validator, computed_field
 
 
 # Горната граница не е каприз: passlib отказва вход над 4096 байта с изключение,
@@ -47,12 +49,19 @@ def _check_phone(v):
     return v
 
 
+def _check_new_password(v):
+    """For a password being chosen (not one being typed to sign in)."""
+    if isinstance(v, str) and security.is_common_password(v):
+        raise ValueError(security.COMMON_PASSWORD_MESSAGE)
+    return v
+
+
 def _check_password_length(v: str) -> str:
     if len(v) < 8:
         raise ValueError("Паролата трябва да е поне 8 символа")
     if len(v) > 128:
         raise ValueError("Паролата е твърде дълга")
-    return v
+    return _check_new_password(v)
 
 
 # Затворен списък: свободният текст тук не става за нищо после, а и не искаме
@@ -78,6 +87,8 @@ class RoleRequest(BaseModel):
 
 class SetPasswordRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
+
+    _not_common = field_validator("password")(_check_new_password)
 
 
 class RegisterRequest(BaseModel):
@@ -166,6 +177,8 @@ class UserOut(BaseModel):
     has_password: bool = False
     grade: Optional[int] = None
     city: Optional[str] = None
+    country: Optional[str] = None
+    school: Optional[str] = None
     heard_from: Optional[str] = None
     terms_accepted_at: Optional[datetime] = None
 
@@ -173,11 +186,13 @@ class ProfileUpdate(BaseModel):
     """The first-sign-in questions, and the same fields from Settings later."""
     grade: Optional[int] = Field(default=None, ge=1, le=12)
     city: Optional[str] = Field(default=None, max_length=80)
+    country: Optional[str] = Field(default=None, max_length=60)
+    school: Optional[str] = Field(default=None, max_length=120)
     heard_from: Optional[str] = Field(default=None, max_length=20)
 
     _clean_heard = field_validator("heard_from")(_check_heard_from)
 
-    @field_validator("city")
+    @field_validator("city", "country", "school")
     @classmethod
     def _clean_city(cls, v):
         if v is None:
@@ -255,6 +270,10 @@ class FocusSessionIn(BaseModel):
     # горна граница = 24 часа: по-дълга "сесия" е грешка или измислица и само
     # би изкривила статистиката, която родителят вижда
     duration_seconds: int = Field(ge=0, le=86400)
+    # The share of the watched time someone was at the desk. Null when the
+    # session ran without the camera.
+    presence_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    # The same number under its first name: installed copies still send this.
     focus_pct: Optional[int] = Field(default=None, ge=0, le=100)
 
 
@@ -263,8 +282,14 @@ class FocusSessionOut(BaseModel):
 
     id: str
     duration_seconds: int
-    focus_pct: Optional[int] = None
+    presence_pct: Optional[int] = None
     created_at: datetime
+
+    # Installed copies read the old name; it is the same number.
+    @computed_field
+    @property
+    def focus_pct(self) -> Optional[int]:
+        return self.presence_pct
 
 
 class ScanHistoryOut(BaseModel):

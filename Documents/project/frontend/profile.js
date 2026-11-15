@@ -111,8 +111,9 @@ const Profile = (() => {
         if (res.ok) { u = await res.json(); Auth.updateUser(u); }
       } catch { return; }
     }
+    // The questions themselves are asked by onboarding.js after the first
+    // sign-in; this form is now only what Settings → About you opens.
     summary();
-    if (needsAsking(u) && !snoozed()) open();
   }
 
   function init() {
@@ -122,7 +123,7 @@ const Profile = (() => {
     $('quizLater').addEventListener('click', later);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('profileQuiz').classList.contains('hidden')) later(); });
     const btn = $('settingsProfileBtn');
-    if (btn) btn.addEventListener('click', () => { $('settingsOverlay').classList.add('hidden'); open(); });
+    if (btn) btn.addEventListener('click', () => { if (window.AccountUI) AccountUI.close(); else $('settingsOverlay').classList.add('hidden'); open(); });
     window.addEventListener('climby:auth-changed', e => { if (e.detail && e.detail.loggedIn) setTimeout(maybeAsk, 400); else summary(); });
     window.addEventListener('climby:user-updated', summary);
     maybeAsk();

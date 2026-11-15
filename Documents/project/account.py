@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 import rate_limit
@@ -40,6 +40,13 @@ class PasswordChange(BaseModel):
     # yet, and setting a first one is how it gains a second way in.
     current_password: Optional[str] = Field(default=None, max_length=200)
     new_password: str = Field(min_length=8, max_length=200)
+
+    @field_validator("new_password")
+    @classmethod
+    def _not_common(cls, v):
+        if security.is_common_password(v):
+            raise ValueError(security.COMMON_PASSWORD_MESSAGE)
+        return v
 
 
 class PasswordChanged(BaseModel):
@@ -148,6 +155,8 @@ def export_data(
             "role": user.role,
             "grade": user.grade,
             "city": user.city,
+            "country": user.country,
+            "school": user.school,
             "heard_from": user.heard_from,
             "email_verified": bool(user.is_email_verified),
             "phone_verified": bool(user.is_phone_verified),
@@ -168,7 +177,7 @@ def export_data(
             "at": _iso(b.created_at),
         } for b in briefs],
         "study_sessions": [{
-            "duration_seconds": s.duration_seconds, "focus_pct": s.focus_pct, "at": _iso(s.created_at),
+            "duration_seconds": s.duration_seconds, "at_desk_pct": s.presence_pct, "at": _iso(s.created_at),
         } for s in sessions],
         "rope_team": {
             "parents_with_access": [{"name": n, "since": _iso(at)} for n, at in parents],

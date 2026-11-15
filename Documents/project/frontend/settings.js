@@ -25,10 +25,7 @@ const AccountUI = (() => {
     renderDevices();
     const first = document.querySelector('#settingsOverlay .settings-group:not(.hidden)');
     const target = (typeof section === 'string' && $(section)) || first;
-    if (target) {
-      target.scrollIntoView({ block: 'start' });
-      markNav((target.closest('.settings-group') || target).id);
-    }
+    if (target) showGroup(target);
     window.dispatchEvent(new CustomEvent('climby:settings-opened'));
   }
 
@@ -112,6 +109,9 @@ const AccountUI = (() => {
       const allowed = el.dataset.settingsRole.split(' ');
       el.classList.toggle('hidden', !!role && !allowed.includes(role));
     });
+    const shown = document.querySelector('#settingsOverlay .settings-group.is-shown:not(.hidden)');
+    const first = document.querySelector('#settingsOverlay .settings-group:not(.hidden)');
+    if (!shown && first) showGroup(first);
   }
 
   function updateAccount() {
@@ -139,35 +139,32 @@ const AccountUI = (() => {
     $('logoutBtn').classList.toggle('hidden', !user);
   }
 
+  // One category at a time. Settings was a single long page with a list
+  // beside it that scrolled you to a heading; with a dozen sections that is a
+  // lot to move through to find one switch. Now the list chooses and the
+  // right-hand side shows only that category. `target` may be a group or
+  // something inside one (the memory row): its group is shown, and it is
+  // scrolled to.
+  function showGroup(target) {
+    let group = target.closest('.settings-group') || target;
+    if (group.classList.contains('hidden')) {
+      group = document.querySelector('#settingsOverlay .settings-group:not(.hidden)') || group;
+      target = group;
+    }
+    document.querySelectorAll('#settingsOverlay .settings-group').forEach(g => {
+      g.classList.toggle('is-shown', g === group);
+    });
+    markNav(group.id);
+    const card = document.querySelector('#settingsOverlay .settings-card');
+    if (card) card.scrollTop = 0;
+    if (target !== group) target.scrollIntoView({ block: 'start' });
+  }
+
   function markNav(id) {
     document.querySelectorAll('[data-settings-jump]').forEach(link => {
       if (link.dataset.settingsJump === id) link.setAttribute('aria-current', 'location');
       else link.removeAttribute('aria-current');
     });
-  }
-
-  // The highlighted section follows the scroll instead of staying on the one
-  // that was clicked last (or on the first, if nothing ever was).
-  function syncNavToScroll() {
-    const overlay = document.querySelector('#settingsOverlay .settings-card');
-    let queued = false;
-    const update = () => {
-      queued = false;
-      let current = null;
-      document.querySelectorAll('#settingsOverlay .settings-group:not(.hidden)').forEach(group => {
-        if (group.getBoundingClientRect().top <= 140) current = group.id;
-      });
-      const last = overlay.scrollHeight - overlay.scrollTop - overlay.clientHeight < 8;
-      if (last) {
-        const groups = document.querySelectorAll('#settingsOverlay .settings-group:not(.hidden)');
-        current = groups[groups.length - 1].id;
-      }
-      const first = document.querySelector('#settingsOverlay .settings-group:not(.hidden)');
-      markNav(current || (first && first.id));
-    };
-    overlay.addEventListener('scroll', () => {
-      if (!queued) { queued = true; requestAnimationFrame(update); }
-    }, { passive: true });
   }
 
   function init() {
@@ -186,21 +183,15 @@ const AccountUI = (() => {
     $('settingsMenuBtn').addEventListener('click', () => openSettings());
     $('menuLoginBtn').addEventListener('click', () => { closeMenu(); Auth.openEntryGate(); });
 
-    // The section list on the left: scroll the group into view inside the
-    // panel, which is the thing that scrolls — not the page behind it.
+    // The section list on the left chooses which category the right side shows.
     document.querySelectorAll('[data-settings-jump]').forEach(btn => {
       btn.addEventListener('click', () => {
         const target = document.getElementById(btn.dataset.settingsJump);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.querySelectorAll('[data-settings-jump]').forEach(link => {
-          if (link === btn) link.setAttribute('aria-current', 'location');
-          else link.removeAttribute('aria-current');
-        });
+        if (target) showGroup(target);
       });
     });
 
     $('settingsClose').addEventListener('click', closeSettings);
-    syncNavToScroll();
     $('settingsOverlay').addEventListener('click', e => {
       if (e.target === $('settingsOverlay')) closeSettings();
     });

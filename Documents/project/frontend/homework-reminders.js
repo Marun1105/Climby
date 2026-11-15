@@ -1,28 +1,27 @@
-// homework-reminders.js — a nudge in the evening, before the homework is forgotten.
+// homework-reminders.js — one quiet reminder in the evening, if the student asked for it.
 //
-// Two at most a day, and only when there is something to do: homework due
-// today or tomorrow, or already late. The first comes after half past six and
-// is gentle; the second, after half past eight, says it is getting late. None
-// while a focus session runs — that student is already at it — and none at
-// all once the switch in Settings is off.
+// Off until switched on: it is offered once, after the first homework is
+// added, and after that it lives in Settings. At most one a day, at half past
+// six or later and never after half past eight (nothing late in the evening),
+// only when homework is due today or tomorrow or already late, and never while
+// a focus session runs. The words are plain: what is due, nothing about
+// streaks, friends, or being missed.
 //
 // A Windows notification through the desktop app (the same door the break
 // reminders use), and a toast when Climby is the window in front.
 const HomeworkReminders = (() => {
   const PREF = 'climby-hw-remind';            // 'off' turns them off on this device
   const SENT = 'climby-hw-reminded:';         // + account id: { day, sent: ['early'|'late'] }
-  const SLOTS = [
-    { id: 'early', from: 18 * 60 + 30, kind: 'early', lines: 6 },
-    { id: 'late', from: 20 * 60 + 30, kind: 'late', lines: 5 },
-  ];
-  const UNTIL = 22 * 60 + 30;                 // after this, let them sleep
+  const FROM = 18 * 60 + 30;
+  const UNTIL = 20 * 60 + 30;                 // quiet after this
+  const ASKED = 'climby-hw-asked';            // the one-time offer has been made
   const CHECK_MS = 5 * 60 * 1000;
   let timer = null;
 
   const t = (k, v) => (window.t ? window.t(k, v) : k);
 
   function enabled() {
-    try { return localStorage.getItem(PREF) !== 'off'; } catch { return true; }
+    try { return localStorage.getItem(PREF) === 'on'; } catch { return false; }
   }
 
   function setEnabled(on) {
@@ -47,19 +46,10 @@ const HomeworkReminders = (() => {
     try { localStorage.setItem(SENT + uid, JSON.stringify({ day: today(), sent })); } catch { /* may repeat once */ }
   }
 
-  // The slot due now, if any: the latest one whose time has come and that has
-  // not been sent. Opening the app at nine sends the late one, not both.
+  // Is a reminder due now: inside the evening window and none sent today.
   function dueSlot(uid, minutes) {
-    if (minutes >= UNTIL) return null;
-    const sent = sentToday(uid);
-    const open = SLOTS.filter(s => minutes >= s.from);
-    const slot = open[open.length - 1];
-    if (!slot || sent.includes(slot.id)) return null;
-    return slot;
-  }
-
-  function pick(kind, count) {
-    return Math.floor(Math.random() * count);
+    if (minutes < FROM || minutes >= UNTIL) return null;
+    return sentToday(uid).length ? null : { id: 'evening' };
   }
 
   function notify(title, body) {
@@ -100,10 +90,25 @@ const HomeworkReminders = (() => {
     soon.sort((a, b) => Checklist.daysUntil(a.deadline) - Checklist.daysUntil(b.deadline));
     const first = soon[0];
     const task = first.subject ? `${first.subject}: ${first.text}` : first.text;
-    const i = pick(slot.kind, slot.lines);
-    const body = t(`hw.${slot.kind}.${i}`, { task: task.length > 60 ? task.slice(0, 58) + '…' : task, n: soon.length });
+    const due = Checklist.daysUntil(first.deadline);
+    const key = soon.length > 1 ? 'hw.remindMany' : due < 0 ? 'hw.remindLate' : due === 0 ? 'hw.remindToday' : 'hw.remindTomorrow';
+    const body = t(key, { task: task.length > 60 ? task.slice(0, 58) + '…' : task, n: soon.length });
     markSent(String(user.id), slot.id);
-    notify(t(slot.kind === 'late' ? 'hw.titleLate' : 'hw.title'), body);
+    notify(t('hw.title'), body);
+  }
+
+  // Asked once, when homework is first added and the choice has never been
+  // made. Yes and "not now" weigh the same: the toast simply goes away, and
+  // the switch stays in Settings.
+  function offerOnce() {
+    try {
+      if (localStorage.getItem(PREF) !== null || localStorage.getItem(ASKED) === '1') return;
+      if (!window.Auth || !Auth.isLoggedIn() || !window.Toast) return;
+      const user = Auth.getUser();
+      if (!user || (user.role && user.role !== 'student')) return;
+      localStorage.setItem(ASKED, '1');
+    } catch { return; }
+    Toast.show(t('hw.offer'), { action: { label: t('hw.offerYes'), onClick: () => setEnabled(true) }, timeout: 12000 });
   }
 
   function paint() {
@@ -124,6 +129,7 @@ const HomeworkReminders = (() => {
     start();
     // back from sleep or another window: look now rather than in five minutes
     document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    window.addEventListener('climby:tasks-changed', offerOnce);
   }
 
   document.addEventListener('DOMContentLoaded', init);

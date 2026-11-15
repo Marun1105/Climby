@@ -50,7 +50,7 @@ def _fill(uid):
     db = SessionLocal()
     db.add(Task(user_id=uid, text="Problems 4-8", subject="Math", deadline=date(2030, 1, 1)))
     db.add(ScanHistory(user_id=uid, question="What is 7x8?", answer="56"))
-    db.add(FocusSession(user_id=uid, duration_seconds=900, focus_pct=80))
+    db.add(FocusSession(user_id=uid, duration_seconds=900, presence_pct=80))
     dev = PairedDevice(user_id=uid, name="iPhone", token_hash="hash-" + uid)
     db.add(dev)
     db.flush()
@@ -247,3 +247,14 @@ def test_a_field_left_out_is_left_alone():
     client.patch("/account/profile", json={"heard_from": "friend"}, headers=h)
     me = client.get("/auth/me", headers=h).json()
     assert me["grade"] == 4 and me["city"] == "Varna" and me["heard_from"] == "friend"
+
+
+def test_country_and_school_are_saved_and_exported():
+    _, h = _login("where-from@example.com")
+    res = client.patch("/account/profile", json={"country": "  Bulgaria ", "city": "Plovdiv", "school": "ОУ  „Васил Левски“", "grade": 7}, headers=h)
+    assert res.status_code == 200, res.text
+    assert res.json()["country"] == "Bulgaria" and res.json()["school"] == "ОУ „Васил Левски“"
+    # a field left out is left alone
+    assert client.patch("/account/profile", json={"grade": 8}, headers=h).json()["school"] == "ОУ „Васил Левски“"
+    exported = client.get("/account/export", headers=h).json()
+    assert "Bulgaria" in str(exported) and "Васил Левски" in str(exported)

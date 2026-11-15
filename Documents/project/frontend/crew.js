@@ -115,6 +115,9 @@ const Crew = (() => {
     id: p.username, name: p.name, username: p.username, grade: p.grade,
     holdsWeek: p.holds_week || 0, holdsTotal: p.holds_total || 0, streak: p.streak || 0,
     live: !!p.live, liveMin: p.live_minutes || 0, mutual: p.mutual || 0,
+    // a friend who has not chosen to share their points shows none (not zero)
+    sharesPoints: p.shares_points !== false,
+    shareLive: !!p.share_live, sharePoints: !!p.share_points,
     photo: safePhoto(p.avatar), hue: hueOf(p.username), request: p.request || null,
   });
 
@@ -242,8 +245,10 @@ const Crew = (() => {
     host.innerHTML = '';
     const path = $('crewTrailPath');
     const len = path.getTotalLength();
-    const everyone = [data.me, ...data.friends].sort((a, b) => a.holdsWeek - b.holdsWeek);
-    const max = Math.max(...everyone.map(p => p.holdsWeek), 1);
+    // You first, then friends by name. Position says nothing about points:
+    // a list of friends is not a league table.
+    const everyone = [data.me, ...[...data.friends].sort((a, b) => a.name.localeCompare(b.name))];
+    const span = Math.max(everyone.length - 1, 1);
     const stage = $('crewStage').getBoundingClientRect();
     const narrow0 = stage.width < 700;
     $('crewStage').classList.toggle('is-narrow', narrow0);
@@ -253,7 +258,7 @@ const Crew = (() => {
     const placed = [];
 
     everyone.forEach((p, i) => {
-      const f = 0.05 + 0.9 * (p.holdsWeek / max);
+      const f = everyone.length === 1 ? 0.5 : 0.05 + 0.9 * (i / span);
       const pt = path.getPointAtLength(f * len);
       let x = pt.x / 10, y = pt.y / 7;           // in % of the stage
       // never on top of each other: step aside, alternately left and right
@@ -278,12 +283,14 @@ const Crew = (() => {
       b.style.setProperty('--delay', (0.15 + i * 0.09).toFixed(2) + 's');
       b.style.animationDuration = `0.6s, ${4 + (i % 4) * 0.6}s`;
       const label = p.id === 'me' ? t('crew.you') : p.name;
-      b.setAttribute('aria-label', t(p.live ? 'crew.bubbleLive' : 'crew.bubble', { name: label, n: p.holdsWeek }));
+      b.setAttribute('aria-label', p.sharesPoints === false ? label
+        : t(p.live ? 'crew.bubbleLive' : 'crew.bubble', { name: label, n: p.holdsWeek }));
       b.innerHTML =
         (p.live ? '<span class="crew-ripple"></span><span class="crew-ripple"></span><span class="crew-ripple"></span>' : '') +
         avatarHtml(p) +
         (p.live ? `<span class="crew-live-tag"><i></i>${esc(t('crew.live'))}</span>` : '') +
-        `<span class="crew-label">${holdSvg(i)}<b>${p.holdsWeek}</b> ${esc(label)}</span>`;
+        (p.sharesPoints !== false ? `<span class="crew-label">${holdSvg(i)}<b>${p.holdsWeek}</b> ${esc(label)}</span>`
+                        : `<span class="crew-label">${esc(label)}</span>`);
       b.addEventListener('click', () => openPerson(p));
       host.appendChild(b);
       if (p.id === 'me') b.id = 'crewMe';
@@ -332,9 +339,6 @@ const Crew = (() => {
   // ---------------------------------------------------------------- headlines
   function headlines() {
     const me = data.me;
-    const all = [me, ...data.friends].sort((a, b) => b.holdsWeek - a.holdsWeek);
-    const top = all[0];
-    const ahead = all.filter(p => p.holdsWeek > me.holdsWeek).pop();   // the one just above me
     const live = data.friends.filter(f => f.live);
     const out = [];
     const waiting = (data.incoming || []).length;
@@ -347,11 +351,10 @@ const Crew = (() => {
       out.push(week);
       return out;
     }
-    if (top.id === 'me') out.push([t('crew.hlTop1'), t('crew.hlTop2')]);
-    else if (ahead) out.push([t('crew.hlAhead1', { name: ahead.name }), t('crew.hlAhead2', { n: ahead.holdsWeek - me.holdsWeek })]);
+    // Only your own week and who is studying now. Nothing about who is ahead:
+    // comparison copy is the part of a streak that does harm.
     if (live.length) out.push([t(live.length === 1 ? 'crew.hlLiveOne1' : 'crew.hlLive1', { n: live.length, name: live[0].name }), t('crew.hlLive2')]);
     out.push(week);
-    out.push([t('crew.hlSummit1', { name: top.id === 'me' ? t('crew.you') : top.name }), t('crew.hlSummit2')]);
     return out;
   }
 
@@ -474,7 +477,10 @@ const Crew = (() => {
   function openPerson(p) {
     const isMe = p.id === 'me';
     const groups = (p.groups || []).map(id => data.groups.find(g => g.id === id)).filter(Boolean);
-    const mutual = data.friends.filter(f => f.id !== p.id).slice(0, Math.min(p.mutual || 0, 4));
+    // The server sends how many friends you share, not who they are. The faces
+    // used to be simply your first few friends — fine in the preview, untrue
+    // with real people — so signed in, only the number is shown.
+    const mutual = mode === 'demo' ? data.friends.filter(f => f.id !== p.id).slice(0, Math.min(p.mutual || 0, 4)) : [];
     const ring = GRADS[(p.hue || 0) % GRADS.length][0];
     const card = openCard(`
       <div class="crew-card-head">
@@ -485,12 +491,18 @@ const Crew = (() => {
           ${p.live ? `<span class="crew-card-live">${esc(t('crew.liveFor', { n: p.liveMin }))}</span>` : ''}
         </div>
       </div>
-      <div class="crew-stats">
+      ${p.sharesPoints !== false ? `<div class="crew-stats">
         <div class="crew-stat"><strong>${holdSvg(3)}${p.holdsWeek}</strong><span>${esc(t('crew.statWeek'))}</span></div>
         <div class="crew-stat"><strong>${p.holdsTotal}</strong><span>${esc(t('crew.statTotal'))}</span></div>
-        <div class="crew-stat"><strong>${p.streak}🔥</strong><span>${esc(t('crew.statStreak'))}</span></div>
-      </div>
-      ${!isMe && mutual.length ? `<div class="crew-mutual"><span class="crew-mutual-faces">${mutual.map(m => `<span class="crew-mini" style='--avatar-bg:${grad(m.hue)}'>${esc(initial(m))}</span>`).join('')}</span>${esc(t('crew.mutual', { n: p.mutual }))}</div>` : ''}
+        ${isMe && window.Prefs && Prefs.get('streak') === 'off' ? '' : `<div class="crew-stat"><strong>${p.streak}🔥</strong><span>${esc(t('crew.statStreak'))}</span></div>`}
+      </div>` : `<p class="crew-private">${esc(t('crew.pointsPrivate', { name: p.name }))}</p>`}
+      ${isMe && mode === 'live' ? `<div class="crew-sharing">
+        <p class="crew-sharing-title">${esc(t('crew.sharingTitle'))}</p>
+        <label class="crew-share-row"><input type="checkbox" data-share="live"${p.shareLive ? ' checked' : ''}><span>${esc(t('crew.shareLive'))}</span></label>
+        <label class="crew-share-row"><input type="checkbox" data-share="points"${p.sharePoints ? ' checked' : ''}><span>${esc(t('crew.sharePoints'))}</span></label>
+        <p class="crew-sharing-note">${esc(t('crew.sharingNote'))}</p>
+      </div>` : ''}
+      ${!isMe && p.mutual ? `<div class="crew-mutual"><span class="crew-mutual-faces">${mutual.map(m => `<span class="crew-mini" style='--avatar-bg:${grad(m.hue)}'>${esc(initial(m))}</span>`).join('')}</span>${esc(t('crew.mutual', { n: p.mutual }))}</div>` : ''}
       ${groups.length ? `<div class="crew-chips">${groups.map(g => `<span class="crew-chip">${esc(g.name)}</span>`).join('')}</div>` : ''}
       <div class="crew-actions">
         ${isMe
@@ -536,6 +548,13 @@ const Crew = (() => {
         load();
       });
     });
+    card.querySelectorAll('[data-share]').forEach(box => box.addEventListener('change', async () => {
+      const r = await api('/crew/sharing', { method: 'POST', body: JSON.stringify({ [box.dataset.share]: box.checked }) });
+      if (!r.ok) { box.checked = !box.checked; say(card, detail(r)); return; }
+      if (box.dataset.share === 'live') { p.shareLive = box.checked; data.me.shareLive = box.checked; }
+      else { p.sharePoints = box.checked; data.me.sharePoints = box.checked; }
+      say(card, t('crew.sharingSaved'));
+    }));
     const edit = card.querySelector('[data-act="edit"]');
     if (edit) edit.addEventListener('click', () => { closeCard(); if (window.AccountUI) AccountUI.open('accountRows'); });
     const photo = card.querySelector('[data-act="photo"]');
@@ -548,9 +567,9 @@ const Crew = (() => {
       <h2 id="crewCardTitle" class="crew-card-name">${esc(g.name)}</h2>
       <p class="crew-card-sub">${esc(t('crew.groupSub', { n: people.length, h: total }))}</p>
       <div class="crew-results" style="margin-top:14px">
-        ${people.sort((a, b) => b.holdsWeek - a.holdsWeek).map((p, i) => `
+        ${people.sort((a, b) => a.name.localeCompare(b.name)).map((p) => `
           <div class="crew-result">${avatarHtml(p)}
-            <div class="crew-result-text"><strong>${i === 0 ? '👑 ' : ''}${esc(p.name)}</strong><span>${esc(t('crew.weekPill', { n: p.holdsWeek }))}</span></div>
+            <div class="crew-result-text"><strong>${esc(p.name)}</strong><span>${esc(t('crew.weekPill', { n: p.holdsWeek }))}</span></div>
             <button class="crew-add" type="button" data-id="${esc(p.id)}">${esc(t('crew.view'))}</button>
           </div>`).join('')}
       </div>`);
