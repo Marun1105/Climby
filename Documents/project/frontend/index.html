@@ -149,6 +149,8 @@
         <input id="registerPassword" type="password" placeholder=" " autocomplete="new-password">
         <label for="registerPassword" data-i18n="auth.password">Парола</label>
       </div>
+      <!-- The rule is said before anyone types, not only after they get it wrong. -->
+      <p id="registerPwHint" class="field-hint" data-i18n="auth.pwHint">At least 8 characters. A longer phrase is stronger than symbols.</p>
       <div id="registerPwStrength" class="pw-strength hidden">
         <div class="pw-strength-track"><span id="registerPwBar" class="pw-strength-fill"></span></div>
         <span id="registerPwLabel" class="pw-strength-label"></span>
