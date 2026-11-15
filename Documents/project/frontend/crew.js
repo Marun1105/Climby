@@ -494,7 +494,7 @@ const Crew = (() => {
       ${p.sharesPoints !== false ? `<div class="crew-stats">
         <div class="crew-stat"><strong>${holdSvg(3)}${p.holdsWeek}</strong><span>${esc(t('crew.statWeek'))}</span></div>
         <div class="crew-stat"><strong>${p.holdsTotal}</strong><span>${esc(t('crew.statTotal'))}</span></div>
-        <div class="crew-stat"><strong>${p.streak}🔥</strong><span>${esc(t('crew.statStreak'))}</span></div>
+        ${isMe && window.Prefs && Prefs.get('streak') === 'off' ? '' : `<div class="crew-stat"><strong>${p.streak}🔥</strong><span>${esc(t('crew.statStreak'))}</span></div>`}
       </div>` : `<p class="crew-private">${esc(t('crew.pointsPrivate', { name: p.name }))}</p>`}
       ${isMe && mode === 'live' ? `<div class="crew-sharing">
         <p class="crew-sharing-title">${esc(t('crew.sharingTitle'))}</p>

@@ -1,16 +1,33 @@
 # Shorten the wait, guard the camera
 
-> **Status on 15 Nov 2026, the day this was written.** Already done in the app:
-> item 34 (the tour is three stops; it still starts by itself), 36 (username
-> check with suggestions), 38 and 39 (country and town are type-to-search,
-> matching both languages, from generated data; nothing is pre-filled), and the
-> common-password check from the earlier note. Checked against the code for
-> items 1–2: the screens say "at your desk", and the percentage is shown only
-> to the student — it is not in the parent or teacher views. The database
-> column is still named `focus_pct`, and the figure is included in what ClimbAI
-> may be told when memory is on; both are worth renaming or dropping.
-> Everything else below is open.
-
+> **Status, 15 Nov 2026 (evening).** Built since this was written:
+>
+> - **1–3, camera.** The camera now counts only whether someone is at the desk.
+>   The earlier note here was wrong: the code also weighed open eyes and head
+>   direction into the figure, which is attention inference; that is removed.
+>   The timer can run with no camera at all. The figure is called
+>   `presence_pct` in the API, is no longer told to ClimbAI, and the screens say
+>   "at your desk". Still open: the face match at the start of a camera session.
+> - **5, friends.** "Studying now" and points are each shared only by choice,
+>   both off at first; friends are listed by name; "who is ahead" lines are gone.
+> - **9–12, 15, the wait.** Reading is its own request (`/read`), so "Here's what
+>   I read" appears first; step count, progress bar, estimate, Cancel, a notice
+>   when the answer arrives on another screen, "Explain it differently".
+> - **17–19, 21, the answer.** The full solution is offered after a first reply,
+>   the tutor is told to help more directly after an attempt and to leave the
+>   last step, and a line under the answer says ClimbAI can be wrong.
+> - **27–29.** A switch for the days-in-a-row count; a broken run shows study
+>   days and best run, never zero; the evening reminder is opt-in, once a day,
+>   18:30–20:30, plainly worded.
+> - **34, 43, 44.** The tour is offered, not started; a new student's theme
+>   follows the system; answer lines are capped near 70 characters and the
+>   easy-reading setting shortens them.
+> - Earlier: 36, 38, 39 and the common-password check.
+>
+> Not built: 4 (stronger parent confirmation), 6 (friend suggestions and search
+> remain), 7–8 (who-can-see-what screen, privacy text per age), 13–14, 16
+> (streaming, uncertain-symbol marks), 20, 22–26, streak pause days, 30–33, 35,
+> 37, 40–42, 45–53.
 
 Climby's next gains are not in the sign-up form any more. They sit in four places: the camera timer, the 30–40-second wait for the first answer, the "full solution on request" button, and a handful of defaults (dark theme, seven-stop tour, streak with no off switch) that cut against the best available evidence. The single highest risk is legal, not visual: inferring a student's attention or emotion from a camera in an education setting has been a prohibited AI practice in the EU since 2 February 2025, so the stored "presence percentage" must stay a plain count of time at the desk and must never be labelled, computed or shared as focus. The single largest usability defect is the wait, which is three to four times past the 10-second limit for holding attention; it needs a real progress indicator, a stated time estimate, and the page transcription shown as soon as it exists. The tutoring design is right in principle, but twenty years of tutoring research says an answer button alone gets clicked through, while a 2026 trial shows a tutor that only refuses goes unused, so the answer should unlock after a real attempt. Most of what Climby already does for motivation (one forgiven day, points that buy nothing, no chat, numbers-only adult views) matches the evidence and should be kept. The honest limit of this report: almost none of the evidence was gathered on Bulgarian students or on 12–18-year-olds using AI tutors, several legal texts were read only through law-firm or NGO summaries, and each recommendation below says so where it applies.
 

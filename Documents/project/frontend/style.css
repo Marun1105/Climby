@@ -5277,6 +5277,7 @@ button:not(.nav-link):not(.settings-nav-link):active, .entry-choice:active, .cha
    ========================================================================== */
 
 /* -- an icon before every setting, in the theme's own colour -------------- */
+[data-icon="flame"] { --set-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M13.5 2.5c.4 2.6-.7 4.2-2 5.6-1.4 1.5-2.9 2.9-2.9 5.4a5.4 5.4 0 0 0 10.8 0c0-1.6-.6-2.9-1.5-4.2-.3 1-.9 1.6-1.7 1.9.6-2.9-.6-6.6-2.7-8.7z'/></svg>"); }
 [data-icon="bell"] { --set-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z'/><path d='M10 20.5a2 2 0 0 0 4 0'/><path d='M19.5 4.5l1.5-1.5M4.5 4.5 3 3' opacity='.6'/></svg>"); }
 [data-icon="eye"] { --set-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z'/><circle cx='12' cy='12' r='3'/></svg>"); }
 [data-icon="globe"] { --set-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M3 12h18M12 3c2.6 2.8 3.8 5.8 3.8 9s-1.2 6.2-3.8 9c-2.6-2.8-3.8-5.8-3.8-9S9.4 5.8 12 3z'/></svg>"); }
@@ -5836,3 +5837,15 @@ button:not(.nav-link):not(.settings-nav-link):active, .entry-choice:active, .cha
 #focusRunning.focus-plain .focus-preview,
 #focusRunning.focus-plain .focus-identity-check,
 #focusRunning.focus-plain .focus-verify-paused { display: none; }
+
+/* Line length. A line of explanation longer than about 70 characters is harder
+   to follow, most of all for readers with dyslexia; the easy-reading setting
+   shortens it further instead of only spacing it out. Maths blocks and tables
+   keep the full width. */
+.answer > p, .answer > ul, .answer > ol, .answer > blockquote, .read-body > p { max-width: 72ch; }
+html[data-reading="easy"] .answer > p, html[data-reading="easy"] .answer > ul,
+html[data-reading="easy"] .answer > ol, html[data-reading="easy"] .read-body > p,
+html[data-reading="easy"] .chat-msg p { max-width: 58ch; }
+.answer em, .chat-msg em { font-style: normal; font-weight: 600; }
+
+.ai-note { width: 100%; margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-faint); }

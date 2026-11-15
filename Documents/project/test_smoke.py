@@ -650,3 +650,13 @@ def test_a_session_cannot_be_longer_than_the_time_that_passed():
     assert client.post("/focus", json={"duration_seconds": 80000}, headers=headers).status_code == 200
     listed = client.get("/focus", headers=headers).json()
     assert listed and listed[0]["duration_seconds"] <= 200
+
+
+def test_healthz_counts_where_new_accounts_stop():
+    """Four counts for the last week, and no way to tell an account from them."""
+    data = client.get("/healthz").json()
+    funnel = data["funnel_7d"]
+    assert set(funnel) == {"signed_up", "verified", "onboarded", "asked"}
+    assert all(isinstance(v, int) for v in funnel.values())
+    assert funnel["signed_up"] >= funnel["verified"] >= 0
+    assert funnel["signed_up"] >= funnel["asked"]

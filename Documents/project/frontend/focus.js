@@ -145,7 +145,8 @@ const Focus = (() => {
       const data = await res.json();
       const sessions = (data.events || []).filter(e => e.kind === 'session').map(e => ({ created_at: e.at }));
       if (!sessions.length) { el.classList.add('hidden'); return; }
-      const streak = computeStreak(sessions);
+      // Switched off in Settings: the sessions are still counted, the chain is not shown.
+      const streak = (window.Prefs && Prefs.get('streak') === 'off') ? 0 : computeStreak(sessions);
       const label = streak > 0
         ? t('focus.streak', { n: streak, days: streak === 1 ? t('history.dayOne') : t('history.dayMany') })
         : t('focus.sessionsLogged', { n: sessions.length });
@@ -1320,6 +1321,7 @@ const Focus = (() => {
       }
     });
     window.addEventListener('climby:auth-changed', renderStreak);
+    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak') renderStreak(); });
     // Спиране отвсякъде. Води и до раздела, защото там е обобщението — иначе
     // сесията свършва и нищо не казва колко е станала.
     const badgeStop = document.getElementById('focusBadgeStop');

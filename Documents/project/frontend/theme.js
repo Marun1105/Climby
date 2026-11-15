@@ -80,8 +80,11 @@ const Theme = (() => {
     const saved = load(KEY);
     if (saved === 'auto') return 'auto';
     if (LEGACY[saved]) return LEGACY[saved];
-    // A new student starts on the dark Midnight theme (1.0.24 decision), not Auto.
-    return BY_ID[saved] ? saved : 'midnight';
+    // A new student starts on "Match system" (Nov 2026): the 1.0.24 decision
+    // was dark Midnight for everyone, but dark text on light reads better for
+    // most people and defaults are rarely changed — so the device decides,
+    // and Light and Dark stay one press away in Settings.
+    return BY_ID[saved] ? saved : 'auto';
   }
   function autoPalette(base) {
     const key = base === 'dark' ? KEY_DARK : KEY_LIGHT;

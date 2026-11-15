@@ -50,6 +50,18 @@ const Mirror = (() => {
     return n;
   }
 
+  // The longest run of days in what the server sent (one missed day forgiven,
+  // as above). Counted over calendar days, oldest to newest.
+  function bestRun(activeDays) {
+    let best = 0, run = 0, grace = 1;
+    for (let back = 120; back >= 0; back--) {
+      if (activeDays.has(daysAgo(back))) { run++; best = Math.max(best, run); }
+      else if (run > 0 && grace) { grace = 0; }
+      else { run = 0; grace = 1; }
+    }
+    return best;
+  }
+
   function plural(n, one, many) { return n === 1 ? t(one) : t(many, { n }); }
 
   function summarise(day, events) {
@@ -200,11 +212,26 @@ const Mirror = (() => {
     else if (yesterday.length) sentences.push(t('mirror.yesterday', { parts: yesterday.join(', ') }));
     if (dueToday) sentences.push(plural(dueToday, 'mirror.dueOne', 'mirror.dueMany'));
 
-    if (!sentences.length && streak < 2) { el.classList.add('hidden'); return; }
+    // The streak can be switched off (Settings), and a broken one is never a
+    // zero: what is shown then is everything already done — the days studied
+    // and the best run — which missing a day does not take away.
+    const showStreak = !window.Prefs || Prefs.get('streak') !== 'off';
+    const best = bestRun(active);
+    const total = active.size;
+    const tail = !showStreak ? null
+      : streak >= 2 ? t('mirror.streak', { n: streak })
+      : total >= 3 ? t('mirror.daysSoFar', { n: total, best })
+      : null;
+    if (!sentences.length && !tail) { el.classList.add('hidden'); return; }
 
     el.textContent = '';
     el.append(sentences.join(' '));
-    if (streak >= 2) {
+    if (tail && streak < 2) {
+      const span = document.createElement('span');
+      span.className = 'mirror-streak';
+      span.append(tail);
+      el.append(sentences.length ? ' ' : '', span);
+    } else if (tail) {
       const flame = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       flame.setAttribute('class', 'streak-flame');
       flame.setAttribute('viewBox', '0 0 24 24');
@@ -215,7 +242,7 @@ const Mirror = (() => {
       flame.append(path);
       const span = document.createElement('span');
       span.className = 'mirror-streak';
-      span.append(flame, t('mirror.streak', { n: streak }));
+      span.append(flame, tail);
       el.append(sentences.length ? ' ' : '', span);
     }
     el.classList.remove('hidden');
@@ -233,6 +260,7 @@ const Mirror = (() => {
     // saved, a question asked. The line should already be true when you return.
     window.addEventListener('climby:activity', render);
     window.addEventListener('climby:tasks-changed', render);
+    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak') render(); });
     render();
   }
 

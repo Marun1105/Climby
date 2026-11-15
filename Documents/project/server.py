@@ -418,7 +418,34 @@ def healthz():
     # at night for it would teach them to ignore the alarm that matters.
     with SessionLocal() as db_session:
         ai_today = usage.today(db_session)
-    return {"status": "ok", "db": "ok", "commit": BUILD_COMMIT, "ai_today": ai_today, "email": email_service.delivery_status()["state"]}
+        funnel = _funnel_7d(db_session)
+    return {"status": "ok", "db": "ok", "commit": BUILD_COMMIT, "ai_today": ai_today,
+            "funnel_7d": funnel, "email": email_service.delivery_status()["state"]}
+
+
+def _funnel_7d(db: Session) -> dict:
+    """Where new people stop, as four counts and nothing else.
+
+    Of the accounts made in the last seven days: how many exist, how many
+    confirmed their e-mail, how many answered the questions after sign-in (a
+    grade is set), and how many asked ClimbAI a first question. No tracker and
+    nothing new collected — the database already knows this — and no account
+    can be told from a count. Best effort: a failure here must not turn the
+    health check red.
+    """
+    try:
+        since = datetime.now(timezone.utc) - timedelta(days=7)
+        new = db.query(User.id).filter(User.created_at >= since)
+        return {
+            "signed_up": new.count(),
+            "verified": new.filter(User.is_email_verified.is_(True)).count(),
+            "onboarded": new.filter(User.grade.isnot(None)).count(),
+            "asked": db.query(ScanHistory.user_id).filter(
+                ScanHistory.user_id.in_(new.subquery().select())).distinct().count(),
+        }
+    except Exception as err:  # noqa: BLE001
+        print(f"[healthz] funnel counts failed: {err!r}", flush=True)
+        return {}
 
 
 # Отказ, който не връща обратно това, което са качили.

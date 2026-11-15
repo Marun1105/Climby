@@ -266,21 +266,22 @@ function findChromium() {
   for (const [check, passed] of Object.entries(photo)) {
     if (!passed) problems.push('profile photo editor failed: ' + check);
   }
-  // Homework reminders: when each one is due, and never twice.
+  // The homework reminder: once, in the early evening, and only if asked for.
   const hw = await page.evaluate(() => {
     const uid = 'hw-check-user';
     localStorage.removeItem('climby-hw-reminded:' + uid);
     const at = (h, m = 0) => HomeworkReminders.dueSlot(uid, h * 60 + m);
     const tooEarly = at(17) === null;
-    const early = (at(19) || {}).id === 'early';
+    const evening = (at(19) || {}).id === 'evening';
+    const quietLate = at(21) === null && at(23) === null;
     const d = new Date();
-    localStorage.setItem('climby-hw-reminded:' + uid, JSON.stringify({ day: `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, sent: ['early'] }));
-    const notTwice = at(19, 30) === null;
-    const late = (at(21) || {}).id === 'late';
-    const sleep = at(23) === null;
+    localStorage.setItem('climby-hw-reminded:' + uid, JSON.stringify({ day: `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, sent: ['evening'] }));
+    const notTwice = at(19, 30) === null && at(20) === null;
     localStorage.removeItem('climby-hw-reminded:' + uid);
-    const skipsToLate = (at(21) || {}).id === 'late';
-    return { tooEarly, early, notTwice, late, sleep, skipsToLate };
+    // opt-in: nothing is on until the student says so
+    localStorage.removeItem('climby-hw-remind');
+    const offByDefault = HomeworkReminders.enabled() === false;
+    return { tooEarly, evening, quietLate, notTwice, offByDefault };
   });
   for (const [check, passed] of Object.entries(hw)) {
     if (!passed) problems.push('homework reminder timing failed: ' + check);

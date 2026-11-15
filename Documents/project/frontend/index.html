@@ -493,6 +493,16 @@
       </div>
       <p class="settings-note" data-i18n="settings.readingNote">Wider letters and taller lines — easier on the eyes, especially with dyslexia.</p>
     </div>
+    <div class="settings-row" data-icon="flame">
+      <span class="settings-label" data-i18n="settings.streak">Дни подред</span>
+      <div class="settings-control">
+        <select class="settings-select" data-pref="streak" data-i18n-aria-label="settings.streak" aria-label="Days in a row">
+          <option value="on" data-i18n="settings.streakOn">Показвай</option>
+          <option value="off" data-i18n="settings.streakOff">Не показвай</option>
+        </select>
+      </div>
+      <p class="settings-note" data-i18n="settings.streakNote">Броят на дните подред е за теб. Ако те притеснява, изключи го — учебните ти дни пак се броят.</p>
+    </div>
     </section>
     <section class="settings-group" id="setTutor">
     <h3 class="settings-section"><span class="ai-name" data-i18n="settings.secTutor">ClimbAI</span></h3>
@@ -668,7 +678,7 @@
     </div>
     <div class="settings-row" data-icon="bell">
       <span><span data-i18n="hw.setting">Homework reminders</span><br><small class="settings-note" data-i18n="hw.settingHint">In the evening, when something is due tomorrow — at most twice, never during a focus session.</small></span>
-      <label class="switch"><input id="hwRemindOn" type="checkbox" role="switch" data-i18n-aria-label="hw.setting" aria-label="Homework reminders" checked><span class="switch-track"></span></label>
+      <label class="switch"><input id="hwRemindOn" type="checkbox" role="switch" data-i18n-aria-label="hw.setting" aria-label="Homework reminders"><span class="switch-track"></span></label>
     </div>
     <div class="settings-row" data-icon="book">
       <span><span data-i18n="privacy.title">Privacy</span><br><small class="settings-note" data-i18n="privacy.hint">What Climby keeps, who else sees it, and how to have it deleted.</small></span>
@@ -1126,6 +1136,7 @@
     <button id="fullSolutionBtn" type="button" class="quick-reply hidden" data-i18n="scanner.fullSolution">Покажи цялото решение</button>
     <span id="solutionGate" class="solution-gate" data-i18n="scanner.solutionGate">Опитай една стъпка и напиши какво получи — после можеш да видиш цялото решение. Така се помни по-дълго.</span>
   </div>
+  <p class="ai-note" data-i18n="scanner.aiNote">ClimbAI е изкуствен интелект и може да сгреши — да прочете грешно снимка или да обърка сметка. Провери важните стъпки.</p>
   <textarea id="followQuestion" data-i18n-aria-label="scanner.followUpPlaceholder" aria-label="Reply, or ask more" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
   <button id="followBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.followUpBtn">Send</span></button>
 </div>

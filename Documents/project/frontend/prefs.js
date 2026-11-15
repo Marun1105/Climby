@@ -8,10 +8,11 @@
 //   reading  normal | easy                 wider spacing and taller lines
 //   autoread off | on                      speak every answer as it arrives
 //   tutor    hints | full                  how much the tutor holds back
+//   streak   on | off                      show the days-in-a-row count at all
 const Prefs = (() => {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
-  const DEFAULTS = { text: 'normal', reading: 'normal', autoread: 'off', tutor: 'hints' };
+  const DEFAULTS = { text: 'normal', reading: 'normal', autoread: 'off', tutor: 'hints', streak: 'on' };
 
   function read(key) {
     try { return localStorage.getItem('climby-pref-' + key) || DEFAULTS[key]; }

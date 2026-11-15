@@ -946,9 +946,9 @@ def test_github_style_theme_defaults_dark_and_keeps_light_mode():
     css = _read("style.css")
     theme = _read("theme.js")
     html = _read("index.html")
-    # A new student starts on Midnight, the 1.0.24 dark look; the 16 other
-    # palettes (themes.css) are choices on top of it, never the default.
-    assert "return BY_ID[saved] ? saved : 'midnight';" in theme
+    # A new student starts on "Match system" (Nov 2026; it was Midnight since
+    # 1.0.24): the device decides between Midnight and Daylight.
+    assert "return BY_ID[saved] ? saved : 'auto';" in theme
     assert "{ id: 'midnight', base: 'dark' }" in theme
     assert "--bg: #0d1117;" in css and "--accent: #8957e5;" in css
     assert '[data-theme="light"] {' in css and "--accent: #8250df;" in css

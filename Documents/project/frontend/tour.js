@@ -208,7 +208,13 @@ const Tour = (() => {
     const gate = $('entryGate'), onboarding = $('onboarding');
     if ((gate && !gate.classList.contains('hidden')) ||
         (onboarding && !onboarding.classList.contains('hidden'))) return;
-    start();
+    // Offered, not started. A tour that begins by itself is skipped by most
+    // people and makes the first task feel harder; one that is asked for gets
+    // finished. The offer is made once — after that it lives in Settings.
+    try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* it will simply be offered again */ }
+    if (window.Toast) {
+      Toast.show(t('tour.offer'), { action: { label: t('tour.offerYes'), onClick: start }, timeout: 15000 });
+    }
   }
 
   function init() {
