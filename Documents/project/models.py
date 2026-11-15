@@ -53,6 +53,9 @@ class User(Base):
     # like a picture book or a textbook. Both optional; both editable later.
     grade = Column(Integer, nullable=True)
     city = Column(String, nullable=True)
+    # Asked together with the town and the grade in the first-sign-in questions.
+    country = Column(String, nullable=True)
+    school = Column(String, nullable=True)
     # When this person ticked "I agree to the Terms and the Privacy policy (and,
     # under 14, a parent agrees)". The record that they did, and when.
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)

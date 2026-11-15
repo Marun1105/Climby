@@ -166,6 +166,8 @@ class UserOut(BaseModel):
     has_password: bool = False
     grade: Optional[int] = None
     city: Optional[str] = None
+    country: Optional[str] = None
+    school: Optional[str] = None
     heard_from: Optional[str] = None
     terms_accepted_at: Optional[datetime] = None
 
@@ -173,11 +175,13 @@ class ProfileUpdate(BaseModel):
     """The first-sign-in questions, and the same fields from Settings later."""
     grade: Optional[int] = Field(default=None, ge=1, le=12)
     city: Optional[str] = Field(default=None, max_length=80)
+    country: Optional[str] = Field(default=None, max_length=60)
+    school: Optional[str] = Field(default=None, max_length=120)
     heard_from: Optional[str] = Field(default=None, max_length=20)
 
     _clean_heard = field_validator("heard_from")(_check_heard_from)
 
-    @field_validator("city")
+    @field_validator("city", "country", "school")
     @classmethod
     def _clean_city(cls, v):
         if v is None:

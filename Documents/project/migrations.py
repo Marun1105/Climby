@@ -600,6 +600,10 @@ def run() -> list:
         if _tolerantly("users.city",
                        lambda: _add_nullable_column("users", "city", "VARCHAR")):
             applied.append("users.city")
+        for col in ("country", "school"):
+            if _tolerantly(f"users.{col}",
+                           lambda c=col: _add_nullable_column("users", c, "VARCHAR")):
+                applied.append(f"users.{col}")
         # Accounts from before the Terms existed stay NULL: they never ticked it.
         ts = "TIMESTAMP WITH TIME ZONE" if _dialect_name() == "postgresql" else "TIMESTAMP"
         if _tolerantly("users.terms_accepted_at",

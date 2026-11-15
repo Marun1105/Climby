@@ -111,8 +111,9 @@ const Profile = (() => {
         if (res.ok) { u = await res.json(); Auth.updateUser(u); }
       } catch { return; }
     }
+    // The questions themselves are asked by onboarding.js after the first
+    // sign-in; this form is now only what Settings → About you opens.
     summary();
-    if (needsAsking(u) && !snoozed()) open();
   }
 
   function init() {

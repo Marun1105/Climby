@@ -19,6 +19,7 @@ const Auth = (() => {
   function isLoggedIn() { return !!getToken(); }
 
   function _setSession(token, user, remember) {
+    try { localStorage.setItem(KNOWN_KEY, '1'); } catch { /* the welcome shows again; harmless */ }
     const store = remember ? localStorage : sessionStorage;
     const other = remember ? sessionStorage : localStorage;
     other.removeItem(TOKEN_KEY);
@@ -41,6 +42,11 @@ const Auth = (() => {
   }
 
   // ---------- entry gate (full-screen login/register shown before the app) ----------
+
+  // Someone who has signed in on this computer before knows what Climby is:
+  // they get the sign-in form. Everyone else gets the welcome first.
+  const KNOWN_KEY = 'climby-known';
+  function isKnown() { try { return localStorage.getItem(KNOWN_KEY) === '1'; } catch { return false; } }
 
   function showEntryGate() { $('entryGate').classList.remove('hidden'); }
 
@@ -146,7 +152,15 @@ const Auth = (() => {
       const el = $(`${f}Form`);
       if (el) el.classList.toggle('hidden', f !== name);
     });
-    $('authIntro').classList.toggle('hidden', name !== 'login' && name !== 'register');
+    // The welcome is its own screen, not a form inside the card.
+    const welcome = name === 'welcome';
+    $('welcomePanel').classList.toggle('hidden', !welcome);
+    $('entryGateCard').classList.toggle('hidden', welcome);
+    if (welcome && window.Welcome) Welcome.reveal();
+    // Sign-up is kept short: the "why" box and the long security note belong
+    // to the sign-in form. Sign-up has its own one-line promise by the checkbox.
+    $('authIntro').classList.toggle('hidden', name !== 'login');
+    $('authSecurityNote').classList.toggle('hidden', name !== 'login');
     clearError();
   }
 
@@ -192,6 +206,8 @@ const Auth = (() => {
 
   // ---------- password strength meter (register + reset) ----------
 
+  const PW_MIN = 8;   // the same minimum the server enforces
+
   function pwScore(pw) {
     if (!pw) return 0;
     let score = 0;
@@ -211,16 +227,18 @@ const Auth = (() => {
     const score = pwScore(pw);
     const bar = $(barId);
     const label = $(labelId);
-    const pct = Math.min(100, (score / 5) * 100);
+    const pct = pw.length < PW_MIN ? Math.max(8, (pw.length / PW_MIN) * 33) : score <= 2 ? 66 : 100;
     bar.style.width = pct + '%';
     // Силата се показваше с цвят — а в черно-бяла тема --danger, --warn, --blue
     // и --accent са едно и също бяло. Тоест "слаба" се рисуваше най-ярко от
     // всички, точно обратното на смисъла. Затова степента вече е клас, а
     // плътността расте заедно с нея (виж .pw-strength-fill в style.css).
+    // Three states, each with its own colour AND its own words, so it reads
+    // without colour too: red — does not meet the requirement (8 characters);
+    // yellow — accepted, but easy to guess; green — good.
     let level, text;
-    if (score <= 1) { level = 'is-weak'; text = t('auth.pwWeak'); }
-    else if (score <= 2) { level = 'is-fair'; text = t('auth.pwFair'); }
-    else if (score <= 3) { level = 'is-good'; text = t('auth.pwGood'); }
+    if (pw.length < PW_MIN) { level = 'is-bad'; text = t('auth.pwTooShort', { n: PW_MIN }); }
+    else if (score <= 2) { level = 'is-ok'; text = t('auth.pwFair'); }
     else { level = 'is-strong'; text = t('auth.pwStrong'); }
     bar.className = 'pw-strength-fill ' + level;
     label.className = 'pw-strength-label ' + level;
@@ -229,13 +247,19 @@ const Auth = (() => {
 
   async function handleRegister() {
     clearError();
-    const name = $('registerName').value.trim();
+    // Sign-up asks for four things. The name people see starts as the
+    // username; "who are you" and the rest are asked after the first sign-in
+    // (onboarding.js), where they can be skipped.
+    const username = $('registerUsername').value.trim();
     const email = $('registerEmail').value.trim();
     const password = $('registerPassword').value;
     const phone = $('registerPhone').value.trim();
-    const role = (document.querySelector('input[name="registerRole"]:checked') || {}).value || 'student';
-    if (!name || !email || !password) {
+    if (!username || !email || !password) {
       setError(t('auth.errFillAll'));
+      return;
+    }
+    if (password.length < PW_MIN) {
+      setError(t('auth.pwTooShort', { n: PW_MIN }));
       return;
     }
     if (!$('registerTerms').checked) {
@@ -245,12 +269,7 @@ const Auth = (() => {
     try {
       // Отговорът "откъде чу за нас" е даден още във въпросника при първото
       // отваряне — пътува с регистрацията, вместо да се пита пак.
-      let heardFrom = null;
-      try { heardFrom = localStorage.getItem('climby-quiz-heard'); } catch { /* без него също върви */ }
-      await register(name, email, password, role,
-                     $('registerUsername').value.trim(),
-                     phone,
-                     heardFrom);
+      await register(username, email, password, 'student', username, phone, null);
       pendingVerifyEmail = email;
       showForm('verify');
     } catch (err) {
@@ -432,12 +451,10 @@ const Auth = (() => {
     $('resetBtn').addEventListener('click', () => _withBusy($('resetBtn'), handleReset));
     $('logoutBtn').addEventListener('click', handleLogout);
 
-    // Ролята, дадена във въпросника, идва отметната — питали сме веднъж.
-    try {
-      const hinted = localStorage.getItem('climby-quiz-role');
-      const radio = hinted && document.querySelector(`input[name="registerRole"][value="${hinted}"]`);
-      if (radio) radio.checked = true;
-    } catch { /* без localStorage просто остава по подразбиране */ }
+    $('welcomeStart').addEventListener('click', () => { showForm('register'); $('registerUsername').focus(); });
+    $('welcomeLogin').addEventListener('click', e => { e.preventDefault(); showForm('login'); $('loginEmail').focus(); });
+    $('welcomeGuest').addEventListener('click', skipEntryGate);
+    showForm(isKnown() ? 'login' : 'welcome');
 
     _submitOnEnter('loginForm', 'loginBtn');
     _submitOnEnter('registerForm', 'registerBtn');
@@ -516,6 +533,9 @@ const Auth = (() => {
       if ($(id)) $(id).classList.add('hidden');
     });
     if ($('roleForm')) $('roleForm').classList.remove('hidden');
+    // the role question lives in the card, which the welcome screen hides
+    $('welcomePanel').classList.add('hidden');
+    $('entryGateCard').classList.remove('hidden');
     // The gate has to be re-opened, not merely left alone. _setSession fires
     // climby:auth-changed, whose listener sees a signed-in user and closes the
     // gate — and #roleForm lives inside it. Without this line the question is
@@ -550,6 +570,8 @@ const Auth = (() => {
       const store = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
       store.setItem(USER_KEY, JSON.stringify(user));
       if ($('roleForm')) $('roleForm').classList.add('hidden');
+      // answered here already: the questions after sign-in start from the next one
+      try { sessionStorage.setItem('climby-role-asked', '1'); } catch { /* asked twice, at worst */ }
       hideEntryGate();
       window.dispatchEvent(new CustomEvent('climby:auth-changed', { detail: { loggedIn: true, user } }));
     });

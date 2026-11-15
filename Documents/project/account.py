@@ -148,6 +148,8 @@ def export_data(
             "role": user.role,
             "grade": user.grade,
             "city": user.city,
+            "country": user.country,
+            "school": user.school,
             "heard_from": user.heard_from,
             "email_verified": bool(user.is_email_verified),
             "phone_verified": bool(user.is_phone_verified),

@@ -62,7 +62,28 @@
 
 <div id="entryGate" class="entry-gate">
   <button id="entryGateClose" class="entry-gate-close" type="button" data-i18n-aria="entry.skipAria" aria-label="Продължи без вход">✕</button>
-  <div class="auth-card entry-gate-card">
+  <!-- The first thing a new person sees: what Climby is, in one breath, and one
+       clear button. welcome.js reveals the headline word by word. Someone who has
+       signed in on this computer before goes straight to the sign-in form. -->
+  <div id="welcomePanel" class="welcome hidden">
+    <span class="welcome-logo"><img src="logo.png" alt="" width="104" height="104"></span>
+    <h1 id="welcomeTitle" class="welcome-title" data-i18n="welcome.title">Homework that finally makes sense.</h1>
+    <p class="welcome-sub" data-i18n="welcome.sub">Photograph a problem. ClimbAI explains it step by step, until it clicks.</p>
+    <ul class="welcome-points">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg><span data-i18n="welcome.point1">Explains the way, not just the answer</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><path d="m3 6.5 1.4 1.4L7 5.4"/><path d="m3 12 1.4 1.4L7 10.9"/><path d="m3 17.5 1.4 1.4L7 16.4"/></svg><span data-i18n="welcome.point2">Keeps your homework in order</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span data-i18n="welcome.point3">A quiet timer for when you study</span></li>
+    </ul>
+    <button id="welcomeStart" class="btn-primary welcome-cta" type="button">
+      <span data-i18n="welcome.start">Get started</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <p class="welcome-small" data-i18n="welcome.free">Free. Takes about a minute.</p>
+    <p class="auth-switch"><span data-i18n="auth.haveAccount">Вече имаш акаунт?</span> <a href="#" id="welcomeLogin" data-i18n="auth.loginLink">Влез</a></p>
+    <button id="welcomeGuest" class="welcome-guest" type="button" data-i18n="welcome.guest">Look around without an account</button>
+  </div>
+
+  <div id="entryGateCard" class="auth-card entry-gate-card">
     <div class="entry-gate-brand">
       <span class="sidebar-logo"><img src="logo-icon.png" alt=""></span>
       <div class="brand">
@@ -74,7 +95,7 @@
     <div id="authIntro" class="explainer">
       <strong data-i18n="auth.why">Защо трябва да влезеш:</strong> <span data-i18n="auth.entryWhyBody">за да пазим чеклиста и историята ти в акаунт, видими от всяко устройство.</span>
     </div>
-    <p class="auth-security-note" data-i18n="auth.securityNote">Връзката е защитена с HTTPS, а паролите се пазят като еднопосочни хешове. Данните в акаунта не са криптирани от край до край — Climby трябва да ги обработва, за да работи.</p>
+    <p id="authSecurityNote" class="auth-security-note" data-i18n="auth.securityNote">Връзката е защитена с HTTPS, а паролите се пазят като еднопосочни хешове. Данните в акаунта не са криптирани от край до край — Climby трябва да ги обработва, за да работи.</p>
 
     <form novalidate id="loginForm" class="auth-form">
       <div class="field">
@@ -106,15 +127,12 @@
     </form>
 
     <form novalidate id="registerForm" class="auth-form hidden">
-      <div class="field">
-        <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>
-        <input id="registerName" type="text" placeholder=" " autocomplete="given-name">
-        <label for="registerName" data-i18n="auth.nameLabel">Как да те наричаме?</label>
-      </div>
+      <h2 class="auth-title" data-i18n="auth.registerTitle">Create your account</h2>
+      <p class="auth-lede" data-i18n="auth.registerLede">Four fields now. The rest we ask after you sign in — and you can skip it.</p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/><circle cx="12" cy="8" r="4"/><path d="M2 12h3"/></svg></span>
         <input id="registerUsername" type="text" placeholder=" " autocomplete="username" maxlength="20">
-        <label for="registerUsername" data-i18n="auth.usernameLabel">Потребителско име (по желание)</label>
+        <label for="registerUsername" data-i18n="auth.usernameLabel">Потребителско име</label>
       </div>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
@@ -135,35 +153,14 @@
         <div class="pw-strength-track"><span id="registerPwBar" class="pw-strength-fill"></span></div>
         <span id="registerPwLabel" class="pw-strength-label"></span>
       </div>
-      <fieldset class="role-choice">
-        <legend data-i18n="auth.roleLegend">Кой си ти?</legend>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="student" checked>
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleStudent">Ученик</span>
-            <span class="role-hint" data-i18n="auth.roleStudentHint">Сканирай задачи, води чеклист, гледай напредъка си.</span>
-          </span>
+      <div class="consent-box">
+        <label class="remember-row terms-row">
+          <input id="registerTerms" type="checkbox">
+          <span class="remember-box"></span>
+          <span><span data-i18n="auth.termsAgree">I agree to the</span> <a href="https://marun1105.github.io/my-project/terms.html" target="_blank" rel="noopener" data-i18n="auth.termsLink">Terms</a> <span data-i18n="auth.termsAnd">and the</span> <a href="https://marun1105.github.io/my-project/privacy.html" target="_blank" rel="noopener" data-i18n="privacy.link">Privacy policy</a><span data-i18n="auth.termsUnder14">. If I'm under 14, a parent or guardian agrees too.</span></span>
         </label>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="parent">
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleParent">Родител</span>
-            <span class="role-hint" data-i18n="auth.roleParentHint">Свържи се с детето си по код и виж как върви.</span>
-          </span>
-        </label>
-        <label class="role-option">
-          <input type="radio" name="registerRole" value="teacher">
-          <span class="role-body">
-            <span class="role-name" data-i18n="auth.roleTeacher">Учител</span>
-            <span class="role-hint" data-i18n="auth.roleTeacherHint">Направи клас и следи целия клас наведнъж.</span>
-          </span>
-        </label>
-      </fieldset>
-      <label class="remember-row terms-row">
-        <input id="registerTerms" type="checkbox">
-        <span class="remember-box"></span>
-        <span><span data-i18n="auth.termsAgree">I agree to the</span> <a href="https://marun1105.github.io/my-project/terms.html" target="_blank" rel="noopener" data-i18n="auth.termsLink">Terms</a> <span data-i18n="auth.termsAnd">and the</span> <a href="https://marun1105.github.io/my-project/privacy.html" target="_blank" rel="noopener" data-i18n="privacy.link">Privacy policy</a><span data-i18n="auth.termsUnder14">. If I'm under 14, a parent or guardian agrees too.</span></span>
-      </label>
+        <p class="consent-safe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="auth.consentSafe">Your information is safe: sent over a protected connection, never sold, and yours to download or delete.</span></p>
+      </div>
       <button id="registerBtn" class="btn-primary" type="submit" data-i18n="auth.registerBtn">Регистрирай се</button>
       <p class="auth-switch"><span data-i18n="auth.haveAccount">Вече имаш акаунт?</span> <a href="#" id="showLogin" data-i18n="auth.loginLink">Влез</a></p>
     </form>
@@ -796,6 +793,8 @@
       <h2 id="onboardingTitle" class="onboarding-title">Добре дошъл в Climby</h2>
       <p id="onboardingBody" class="onboarding-body">Снимай задача от учебника и AI учителят ще ти обясни стъпка по стъпка.</p>
       <div id="onboardingChoices" class="onboarding-choices hidden"></div>
+      <div id="onboardingFields" class="onboarding-fields hidden"></div>
+      <p id="onboardingError" class="settings-note is-error hidden" role="alert"></p>
       <div class="onboarding-actions">
         <button id="onboardingSkip" class="btn-ghost" type="button" data-i18n="onboarding.skip">Пропусни</button>
         <button id="onboardingNext" class="btn-primary" type="button" data-i18n="onboarding.next">Напред</button>
@@ -1530,6 +1529,7 @@
 <script src="mirror.js"></script>
 <script src="family.js"></script>
 <script src="classes.js"></script>
+<script src="welcome.js"></script>
 <script src="onboarding.js"></script>
 <script src="tour.js"></script>
 <script>

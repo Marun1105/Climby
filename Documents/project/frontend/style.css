@@ -845,10 +845,9 @@ html.settings-open { overflow: hidden; }
   opacity: 0.35;
   transition: width 0.25s ease, opacity 0.2s ease;
 }
-.pw-strength-fill.is-weak { opacity: 0.35; }
-.pw-strength-fill.is-fair { opacity: 0.55; }
-.pw-strength-fill.is-good { opacity: 0.78; }
-.pw-strength-fill.is-strong { opacity: 1; }
+.pw-strength-fill.is-bad { background: #ef4444; opacity: 1; }
+.pw-strength-fill.is-ok { background: #eab308; opacity: 1; }
+.pw-strength-fill.is-strong { background: #22c55e; opacity: 1; }
 .pw-strength-label { font-size: var(--fs-micro); font-weight: 700; color: var(--text-faint); flex-shrink: 0; min-width: 46px; text-align: right; }
 /* Надписът също върви от тих към силен, за да не е плътността единствената следа. */
 .pw-strength-label.is-good { color: var(--text-dim); }
@@ -5614,3 +5613,156 @@ button:not(.nav-link):not(.settings-nav-link):active, .entry-choice:active, .cha
 .holds-fly { position: fixed; z-index: 1500; width: 26px; height: 26px; pointer-events: none; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); }
 .holds-fly svg { width: 100%; height: 100%; display: block; }
 @media (prefers-reduced-motion: reduce) { .holds-plus { animation-duration: 1.2s; } .holds-counter.is-bump { animation: none; } }
+
+/* ---------- welcome: the first screen a new person sees ---------- */
+.welcome {
+  width: 100%;
+  max-width: 620px;
+  margin: 32px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+.welcome-logo img { display: block; width: 104px; height: 104px; object-fit: contain; filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--accent) 45%, transparent)); }
+.welcome-logo { animation: welcome-float 6s ease-in-out infinite; }
+.welcome-title {
+  margin: 4px 0 0;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(30px, 5.2vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--text);
+  text-wrap: balance;
+}
+.welcome-word { display: inline-block; opacity: 0; transform: translateY(0.5em); filter: blur(6px); }
+.welcome.is-in .welcome-word {
+  animation: welcome-word 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: calc(var(--i) * 90ms + 120ms);
+}
+/* everything under the headline comes in after its last word */
+.welcome-sub, .welcome-points, .welcome-cta, .welcome-small, .welcome .auth-switch, .welcome-guest { opacity: 0; }
+.welcome.is-in .welcome-sub,
+.welcome.is-in .welcome-points,
+.welcome.is-in .welcome-cta,
+.welcome.is-in .welcome-small,
+.welcome.is-in .auth-switch,
+.welcome.is-in .welcome-guest {
+  animation: welcome-rise 0.5s ease forwards;
+  animation-delay: calc(var(--words, 5) * 90ms + 260ms + var(--step, 0) * 110ms);
+}
+.welcome-points { --step: 1; }
+.welcome-cta { --step: 2; }
+.welcome-small { --step: 3; }
+.welcome .auth-switch { --step: 4; }
+.welcome-guest { --step: 5; }
+.welcome-sub { margin: 0; max-width: 460px; font-size: 17px; line-height: 1.55; color: var(--text-dim); }
+.welcome-points { list-style: none; margin: 6px 0 2px; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.welcome-points li {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 13px; font-weight: 600;
+}
+.welcome-points svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+.welcome-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  width: auto;
+  min-width: 240px;
+  margin-top: 10px;
+  padding: 17px 34px;
+  border-radius: 999px;
+  font-size: 18px; font-weight: 800;
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.welcome-cta svg { width: 20px; height: 20px; transition: transform 0.2s ease; }
+.welcome-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 40px color-mix(in srgb, var(--accent) 50%, transparent); }
+.welcome-cta:hover svg { transform: translateX(4px); }
+.welcome-cta:active { transform: translateY(0) scale(0.98); }
+.welcome-small { margin: -4px 0 0; font-size: 12.5px; color: var(--text-faint); }
+.welcome .auth-switch { margin: 6px 0 0; }
+.welcome-guest {
+  border: 0; background: none; padding: 6px 8px;
+  color: var(--text-dim); font: inherit; font-size: 13px;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.welcome-guest:hover { color: var(--text); }
+@keyframes welcome-word { to { opacity: 1; transform: none; filter: none; } }
+@keyframes welcome-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes welcome-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-logo { animation: none; }
+  .welcome-word, .welcome-sub, .welcome-points, .welcome-cta, .welcome-small, .welcome .auth-switch, .welcome-guest {
+    opacity: 1 !important; transform: none !important; filter: none !important; animation: none !important;
+  }
+}
+
+/* ---------- sign-up: a short form, and a consent box that says "safe" ---------- */
+.auth-title { margin: 14px 0 4px; font-size: 20px; font-weight: 800; color: var(--text); }
+.auth-lede { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: var(--text-dim); }
+.consent-box {
+  --consent: #22c55e;
+  margin: 4px 0 2px;
+  padding: 12px 13px;
+  border: 1px solid color-mix(in srgb, var(--consent) 45%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--consent) 11%, transparent);
+}
+.consent-box .terms-row { margin: 0; }
+.consent-box .remember-box { border-color: color-mix(in srgb, var(--consent) 70%, var(--border)); }
+.consent-box .remember-row input:checked + .remember-box { background: var(--consent); border-color: var(--consent); }
+.consent-box .remember-row input:focus-visible + .remember-box { outline-color: var(--consent); }
+.consent-safe {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 10px 0 0; padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--consent) 25%, transparent);
+  font-size: 12px; line-height: 1.5; color: var(--text-dim);
+}
+.consent-safe svg { width: 15px; height: 15px; flex: none; margin-top: 1px; color: var(--consent); }
+.pw-strength-label.is-bad { color: #ef4444; }
+.pw-strength-label.is-ok { color: #ca9a06; }
+.pw-strength-label.is-strong { color: #22c55e; }
+.pw-strength-label { min-width: 0; text-align: right; }
+
+/* ---------- the questions after sign-in: over a blurred app ---------- */
+.onboarding {
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+.onboarding-card { max-width: 440px; }
+.onboarding-fields { display: flex; flex-direction: column; gap: 14px; margin: 0 0 20px; text-align: left; }
+.onboarding-choices { margin: 0 0 20px; }
+.onboarding-choice.is-picked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.onboarding-field { display: flex; flex-direction: column; gap: 6px; }
+.onboarding-label { font-size: 12.5px; font-weight: 700; color: var(--text-dim); }
+.onboarding-select, .onboarding-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font: inherit; font-size: 14px;
+}
+.onboarding-select:focus-visible, .onboarding-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.onboarding-city { display: flex; flex-direction: column; gap: 14px; }
+.onboarding-fields .quiz-grades { justify-content: flex-start; }
+.onboarding-actions .btn-primary:only-child, .onboarding-actions .btn-ghost.hidden + .btn-primary { flex: 1; }
+.onboarding.is-done .onboarding-icon svg { color: #22c55e; animation: onboarding-pop 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+.onboarding.is-done .onboarding-title { font-size: 24px; }
+@keyframes onboarding-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .onboarding.is-done .onboarding-icon svg { animation: none; } }
+.onboarding .quiz-grade.is-picked { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.onboarding-select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0ad' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+}
