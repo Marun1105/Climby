@@ -213,6 +213,15 @@ def _add_nullable_column(table: str, column: str, ddl_type: str) -> bool:
     return True
 
 
+def _add_false_column(table: str, column: str) -> bool:
+    """A yes/no column that starts as "no" for every existing row."""
+    if _column_exists(table, column):
+        return False
+    with engine.begin() as conn:
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} BOOLEAN NOT NULL DEFAULT FALSE"))
+    return True
+
+
 def _dialect_name() -> str:
     return engine.dialect.name
 
@@ -604,6 +613,11 @@ def run() -> list:
             if _tolerantly(f"users.{col}",
                            lambda c=col: _add_nullable_column("users", c, "VARCHAR")):
                 applied.append(f"users.{col}")
+        # What friends may see: off for everyone until they choose otherwise.
+        for col in ("share_live", "share_points"):
+            if _tolerantly(f"social_profiles.{col}",
+                           lambda c=col: _add_false_column("social_profiles", c)):
+                applied.append(f"social_profiles.{col}")
         # Accounts from before the Terms existed stay NULL: they never ticked it.
         ts = "TIMESTAMP WITH TIME ZONE" if _dialect_name() == "postgresql" else "TIMESTAMP"
         if _tolerantly("users.terms_accepted_at",

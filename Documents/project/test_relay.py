@@ -354,3 +354,52 @@ def test_the_reader_call_carries_the_timeout(monkeypatch):
     assert res.status_code == 200
     reader = [c for c in calls if c["model"] == relay.READER_MODEL]
     assert reader and reader[0]["timeout"] == relay.READER_TIMEOUT_S
+
+
+# ------------------------------------------------- reading as its own request
+
+
+def _read(headers=None, **body):
+    rate_limit._hits.clear()
+    payload = {"images": [JPEG], "question": "How do I solve 22?", "lang": "en"}
+    payload.update(body)
+    return client.post("/read", json=payload, headers=headers or {})
+
+
+def test_reading_alone_returns_the_page_and_never_the_solution(monkeypatch):
+    calls = _fake(monkeypatch)
+    res = _read()
+    assert res.status_code == 200, res.text
+    assert res.json()["read"] == READ
+    assert SOLUTION not in res.text
+    assert len(_readers(calls)) == 1 and _tutors(calls) == []
+
+
+def test_the_first_question_after_reading_uses_the_page_and_reads_nothing(monkeypatch):
+    calls = _fake(monkeypatch)
+    brief_id = _read().json()["brief_id"]
+    calls.clear()
+    res = _ask(brief_id=brief_id)
+    assert res.status_code == 200, res.text
+    assert _readers(calls) == []
+    assert READ in _tutors(calls)[0]["system"]
+    assert not _has_image(_tutors(calls)[0])
+
+
+def test_a_page_that_cannot_be_read_says_so_and_the_old_path_still_works(monkeypatch):
+    _fake(monkeypatch, reader_error=RuntimeError("overloaded"))
+    assert _read().status_code == 503
+    assert _ask(images=[JPEG]).status_code == 200
+
+
+def test_reading_needs_a_photograph():
+    assert _read(images=[]).status_code == 422
+
+
+def test_reading_is_limited_like_asking(monkeypatch):
+    _fake(monkeypatch)
+    rate_limit._hits.clear()
+    payload = {"images": [JPEG], "question": "q", "lang": "en"}
+    codes = [client.post("/read", json=payload).status_code for _ in range(13)]
+    assert codes[:12] == [200] * 12 and codes[12] == 429
+    rate_limit._hits.clear()

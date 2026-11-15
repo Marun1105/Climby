@@ -126,7 +126,7 @@ def test_explicitly_disabled_memory_does_not_fall_back_to_legacy_context(monkeyp
     db = SessionLocal()
     db.add(Task(user_id=uid, text="Private unfinished task"))
     db.add(ScanHistory(user_id=uid, question="Private old question", answer="…"))
-    db.add(FocusSession(user_id=uid, duration_seconds=1800, focus_pct=90))
+    db.add(FocusSession(user_id=uid, duration_seconds=1800, presence_pct=90))
     db.commit()
     db.close()
     seen = _capture(monkeypatch)
@@ -147,8 +147,8 @@ def test_memory_sends_only_selected_categories_and_bounded_focus_summary(monkeyp
     db = SessionLocal()
     db.add(Task(user_id=uid, text="Private homework"))
     db.add(ScanHistory(user_id=uid, question="Private earlier question", answer="…"))
-    db.add(FocusSession(user_id=uid, duration_seconds=3600, focus_pct=80))
-    db.add(FocusSession(user_id=uid, duration_seconds=1800, focus_pct=100))
+    db.add(FocusSession(user_id=uid, duration_seconds=3600, presence_pct=80))
+    db.add(FocusSession(user_id=uid, duration_seconds=1800, presence_pct=100))
     db.commit()
     db.close()
     seen = _capture(monkeypatch)
@@ -156,7 +156,9 @@ def test_memory_sends_only_selected_categories_and_bounded_focus_summary(monkeyp
     response = _ask(h, context=False, surface="chat", memory={"focus_sessions": True})
     assert response.status_code == 200
     system = seen["system"]
-    assert "2 recent sessions, 90 minutes total, 90% average focus" in system
+    assert "2 recent sessions, 90 minutes total" in system
+    # the camera figure is the student's own and is never told to the tutor
+    assert "average focus" not in system and "90%" not in system
     assert "Private homework" not in system
     assert "Private earlier question" not in system
 
@@ -185,7 +187,7 @@ def test_memory_preview_is_bounded_across_each_source(monkeypatch):
     for index in range(10):
         db.add(ScanHistory(user_id=uid, question=f"question {index:02d}", answer="…"))
     for index in range(9):
-        db.add(FocusSession(user_id=uid, duration_seconds=600, focus_pct=75 + index))
+        db.add(FocusSession(user_id=uid, duration_seconds=600, presence_pct=75 + index))
     db.commit()
     db.close()
     seen = _capture(monkeypatch)

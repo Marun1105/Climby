@@ -1369,10 +1369,10 @@ def test_the_session_history_only_shows_what_is_really_stored():
     that screen would be invented, and a number a student cannot trust is worse
     than no number."""
     js = _read("sessions.js")
-    assert "focus_pct" in js and "duration_seconds" in js and "created_at" in js
+    assert "presence_pct" in js and "duration_seconds" in js and "created_at" in js
     # a session with the camera off says so rather than showing 0%
     assert "sessions.noCamera" in js
-    assert "session.focus_pct === null" in js
+    assert "pct(session) === null" in js
 
 
 def test_the_session_strings_exist_in_both_languages():

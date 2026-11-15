@@ -129,23 +129,33 @@ def _by_username(db: Session, me: User, username: str) -> User:
     return other
 
 
-def _person(u: User, p: SocialProfile, h: dict, mutual: int = 0) -> dict:
+def _person(u: User, p: SocialProfile, h: dict, mutual: int = 0, own: bool = False) -> dict:
+    """A friend, or yourself (own=True). A friend's numbers and their "studying
+    now" are shown only if that friend has chosen to share them; your own are
+    always yours to see."""
     now = _now()
     live_until = _as_utc(p.live_until)
-    live = bool(live_until and live_until > now)
+    show_live = own or bool(p.share_live)
+    show_points = own or bool(p.share_points)
+    live = bool(show_live and live_until and live_until > now)
     since = _as_utc(p.live_since)
-    return {
+    out = {
         "username": u.username,
         "name": u.display_name,
         "grade": u.grade,
         "avatar": p.avatar,
-        "holds_week": h.get("week", 0),
-        "holds_total": h.get("total", 0),
-        "streak": h.get("streak", 0),
+        "holds_week": h.get("week", 0) if show_points else 0,
+        "holds_total": h.get("total", 0) if show_points else 0,
+        "streak": h.get("streak", 0) if show_points else 0,
+        "shares_points": show_points,
         "live": live,
         "live_minutes": max(1, int((now - since).total_seconds() // 60)) if live and since else 0,
         "mutual": mutual,
     }
+    if own:
+        out["share_live"] = bool(p.share_live)
+        out["share_points"] = bool(p.share_points)
+    return out
 
 
 def _stranger(u: User, mutual: int = 0) -> dict:
@@ -153,7 +163,8 @@ def _stranger(u: User, mutual: int = 0) -> dict:
     doing, and no photo — the photo is for friends."""
     return {
         "username": u.username, "name": u.display_name, "grade": u.grade, "avatar": None,
-        "holds_week": 0, "holds_total": 0, "streak": 0, "live": False, "live_minutes": 0,
+        "holds_week": 0, "holds_total": 0, "streak": 0, "shares_points": False,
+        "live": False, "live_minutes": 0,
         "mutual": mutual,
     }
 
@@ -221,11 +232,13 @@ def crew(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     def mutual(uid: str) -> int:
         return len(their_friends.get(uid, set()) & friend_ids)
 
-    me = _person(user, profile, h.get(user.id, {}))
+    me = _person(user, profile, h.get(user.id, {}), own=True)
     return {
         "needs": None,
         "me": me,
-        "friends": [_person(u, p, h.get(uid, {}), mutual(uid)) for uid, (u, p) in friends.items()],
+        # By name, never by points: a list of friends is not a league table.
+        "friends": [_person(u, p, h.get(uid, {}), mutual(uid)) for uid, (u, p) in
+                    sorted(friends.items(), key=lambda kv: ((kv[1][0].display_name or "").lower(), kv[1][0].username or ""))],
         "incoming": [_stranger(others[i][0], mutual(i)) for i in incoming_ids if i in others],
         "outgoing": [u.username for u in db.query(User).filter(User.id.in_(list(outgoing_ids)))] if outgoing_ids else [],
         "suggested": [_stranger(others[i][0], fof.get(i, 0)) for i in suggested_ids if i in others][:6],
@@ -514,6 +527,8 @@ def live(body: LiveIn, request: Request, user: User = Depends(get_current_user),
     if profile is None:
         return {"status": "ignored"}           # not in Crew: nobody to tell
     now = _now()
+    if body.on and not profile.share_live:
+        return {"status": "ignored"}           # studying invisibly: nothing is stored
     if body.on:
         until = _as_utc(profile.live_until)
         if not until or until <= now:
@@ -524,6 +539,27 @@ def live(body: LiveIn, request: Request, user: User = Depends(get_current_user),
         profile.live_until = None
     db.commit()
     return {"status": "ok"}
+
+
+class SharingIn(BaseModel):
+    live: Optional[bool] = None
+    points: Optional[bool] = None
+
+
+@router.post("/sharing")
+def sharing(body: SharingIn, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """What friends may see of you. Both start off; each is its own switch."""
+    rate_limit.enforce(request, "crew-sharing", max_calls=60, window_seconds=3600,
+                       message="That's a lot of changes at once. Please wait a moment.", user=user)
+    profile = _me(db, user)
+    if body.live is not None:
+        profile.share_live = body.live
+        if not body.live:                      # invisible from this moment, not from the next session
+            profile.live_since = profile.live_until = None
+    if body.points is not None:
+        profile.share_points = body.points
+    db.commit()
+    return {"share_live": bool(profile.share_live), "share_points": bool(profile.share_points)}
 
 
 @router.post("/break")

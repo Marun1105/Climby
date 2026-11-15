@@ -50,7 +50,7 @@ def _fill(uid):
     db = SessionLocal()
     db.add(Task(user_id=uid, text="Problems 4-8", subject="Math", deadline=date(2030, 1, 1)))
     db.add(ScanHistory(user_id=uid, question="What is 7x8?", answer="56"))
-    db.add(FocusSession(user_id=uid, duration_seconds=900, focus_pct=80))
+    db.add(FocusSession(user_id=uid, duration_seconds=900, presence_pct=80))
     dev = PairedDevice(user_id=uid, name="iPhone", token_hash="hash-" + uid)
     db.add(dev)
     db.flush()

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    false,
     Boolean,
     Column,
     Date,
@@ -83,7 +84,7 @@ class User(Base):
     # дотогава токени спират да важат. Причината е обикновена: детето, което си
     # е останало отворено на училищния компютър и после си смени паролата вкъщи,
     # има право да очаква, че оттам нататък никой не му чете домашните.
-    token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    token_version = Column(Integer, nullable=False, default=0, server_default=false())
 
     @property
     def has_password(self) -> bool:
@@ -185,7 +186,10 @@ class FocusSession(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     duration_seconds = Column(Integer, nullable=False)
-    focus_pct = Column(Integer, nullable=True)
+    # The share of the watched time a person was at the desk — presence, never
+    # attention. The column keeps its first name ("focus_pct") so no migration
+    # is needed; nothing in the code calls it that any more.
+    presence_pct = Column("focus_pct", Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)
 
 
@@ -335,7 +339,7 @@ class PairedDevice(Base):
     # няколко. Телефон, който удари таван при единия работник, иначе просто
     # продължава при другия.
     photos_hour_start = Column(DateTime(timezone=True), nullable=True)
-    photos_this_hour = Column(Integer, nullable=False, default=0, server_default="0")
+    photos_this_hour = Column(Integer, nullable=False, default=0, server_default=false())
 
 
 class PhonePhoto(Base):
@@ -380,6 +384,11 @@ class SocialProfile(Base):
     # closed laptop stops glowing within minutes, not never.
     live_since = Column(DateTime(timezone=True), nullable=True)
     live_until = Column(DateTime(timezone=True), nullable=True)
+    # What friends may see, each its own choice and both off until the student
+    # turns them on: that a study session is running, and the weekly points
+    # and streak. Off is the default for everyone under 18 — which is everyone.
+    share_live = Column(Boolean, nullable=False, default=False, server_default=false())
+    share_points = Column(Boolean, nullable=False, default=False, server_default=false())
     created_at = Column(DateTime(timezone=True), default=_now)
 
 

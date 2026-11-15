@@ -5,7 +5,7 @@ from typing import List, Literal, Optional
 
 import security
 
-from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field_validator, computed_field
 
 
 # Горната граница не е каприз: passlib отказва вход над 4096 байта с изключение,
@@ -270,6 +270,10 @@ class FocusSessionIn(BaseModel):
     # горна граница = 24 часа: по-дълга "сесия" е грешка или измислица и само
     # би изкривила статистиката, която родителят вижда
     duration_seconds: int = Field(ge=0, le=86400)
+    # The share of the watched time someone was at the desk. Null when the
+    # session ran without the camera.
+    presence_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    # The same number under its first name: installed copies still send this.
     focus_pct: Optional[int] = Field(default=None, ge=0, le=100)
 
 
@@ -278,8 +282,14 @@ class FocusSessionOut(BaseModel):
 
     id: str
     duration_seconds: int
-    focus_pct: Optional[int] = None
+    presence_pct: Optional[int] = None
     created_at: datetime
+
+    # Installed copies read the old name; it is the same number.
+    @computed_field
+    @property
+    def focus_pct(self) -> Optional[int]:
+        return self.presence_pct
 
 
 class ScanHistoryOut(BaseModel):

@@ -4360,6 +4360,41 @@ button:not(.nav-link):not(.settings-nav-link):active, .entry-choice:active, .cha
 .read-steps li.active .read-step-dot { border-color: var(--purple); background: var(--purple); animation: read-pulse 1.6s ease-in-out infinite; }
 @keyframes read-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .read-note { margin: 14px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-faint); }
+
+/* The wait itself: which stage, how far, and a way out. */
+.wait-stage { margin: 14px 0 8px; font-size: 14.5px; font-weight: 600; color: var(--text); }
+.wait-bar { height: 6px; border-radius: 999px; background: var(--bg-sunken); overflow: hidden; }
+.wait-bar-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--purple); transition: width 0.4s linear; }
+.wait-cancel {
+  display: inline-block; margin-top: 12px; padding: 6px 2px; min-height: 24px;
+  font: inherit; font-size: 13px; font-style: normal; color: var(--text-dim);
+  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.wait-cancel:hover { color: var(--text); }
+.read-actions { padding: 0 18px 12px 35px; }
+.read-actions .wait-cancel { margin-top: 0; }
+
+/* One-press replies under an answer, and the line to a guest. */
+.follow-up { flex-wrap: wrap; }
+.quick-replies { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.quick-reply {
+  font: inherit; font-size: 13px; font-weight: 500;
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  color: var(--text); cursor: pointer;
+}
+.quick-reply:hover { border-color: var(--purple); }
+.quick-reply.hidden, .solution-gate.hidden, .guest-keep.hidden { display: none; }
+.solution-gate { font-size: 12.5px; line-height: 1.45; color: var(--text-faint); flex: 1 1 240px; }
+.guest-keep {
+  width: 100%; margin-top: 12px; padding: 10px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  font-size: 13.5px; color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elevated);
+}
+.guest-keep > span { flex: 1 1 200px; }
+.guest-keep-close { width: 28px; height: 28px; border: 0; background: none; color: var(--text-faint); cursor: pointer; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .wait-bar-fill { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .read-steps li.active .read-step-dot { animation: none; } }
 
 /* ---------- Focus: the session and its history side by side ---------- */
@@ -5796,3 +5831,8 @@ button:not(.nav-link):not(.settings-nav-link):active, .entry-choice:active, .cha
   color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; padding: 4px 10px; cursor: pointer;
 }
 .field-chip:hover { border-color: var(--accent); }
+
+/* A session without the camera: the clock and the stop button, no preview. */
+#focusRunning.focus-plain .focus-preview,
+#focusRunning.focus-plain .focus-identity-check,
+#focusRunning.focus-plain .focus-verify-paused { display: none; }

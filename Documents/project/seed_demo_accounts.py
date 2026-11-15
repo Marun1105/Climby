@@ -196,7 +196,7 @@ def main():
         # Малко фокус история, за да не са нули в изгледите на родителя и учителя.
         if not db.query(FocusSession).filter(FocusSession.user_id == student.id).first():
             for minutes, pct in ((25, 82), (40, 74), (15, 91)):
-                db.add(FocusSession(user_id=student.id, duration_seconds=minutes * 60, focus_pct=pct))
+                db.add(FocusSession(user_id=student.id, duration_seconds=minutes * 60, presence_pct=pct))
             db.commit()
             print("добавени 3 фокус сесии")
 

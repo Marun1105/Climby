@@ -1108,12 +1108,24 @@
     <span class="read-panel-hint" data-i18n="scanner.readHint">Check it matches your page</span>
   </summary>
   <div class="read-body"></div>
+  <div class="read-actions"><button id="readFixBtn" type="button" class="wait-cancel" data-i18n="scanner.readFix">Не е вярно? Поправи го</button></div>
 </details>
 <div id="answer" class="card answer hidden" role="status" aria-live="polite"></div>
 <!-- The rest of the conversation: the student's replies and the tutor's answers,
      in order. The reply box appears once there is something to reply to. -->
 <div id="thread" class="thread"></div>
+<!-- To a guest, once, after the first answer. Dismissed with one press. -->
+<div id="guestKeep" class="guest-keep hidden" role="note">
+  <span data-i18n="scanner.guestKeep">Направи си акаунт, за да запазиш този отговор.</span>
+  <button id="guestKeepBtn" type="button" class="quick-reply" data-i18n="scanner.guestKeepBtn">Създай акаунт</button>
+  <button id="guestKeepClose" type="button" class="guest-keep-close" data-i18n-aria-label="scanner.guestKeepClose" aria-label="Затвори">✕</button>
+</div>
 <div id="followUp" class="follow-up hidden">
+  <div class="quick-replies" role="group" data-i18n-aria-label="scanner.quickLabel" aria-label="Бързи въпроси">
+    <button id="explainAgainBtn" type="button" class="quick-reply" data-i18n="scanner.explainAgain">Обясни по друг начин</button>
+    <button id="fullSolutionBtn" type="button" class="quick-reply hidden" data-i18n="scanner.fullSolution">Покажи цялото решение</button>
+    <span id="solutionGate" class="solution-gate" data-i18n="scanner.solutionGate">Опитай една стъпка и напиши какво получи — после можеш да видиш цялото решение. Така се помни по-дълго.</span>
+  </div>
   <textarea id="followQuestion" data-i18n-aria-label="scanner.followUpPlaceholder" aria-label="Reply, or ask more" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
   <button id="followBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.followUpBtn">Send</span></button>
 </div>
@@ -1293,6 +1305,8 @@
     <div class="focus-safety" aria-label="Camera privacy" data-i18n-aria-label="focus.safetyAria">
       <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraLocal">Camera processing stays on this device.</span></p>
       <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraNotStored">Camera frames are not uploaded or saved.</span></p>
+      <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraPresence">Камерата брои само дали има човек на бюрото — не накъде гледаш, не настроение, не внимание.</span></p>
+      <p><span class="focus-safety-check" aria-hidden="true">✓</span><span data-i18n="focus.cameraOptional">Камерата е по избор: „Започни без камера“ пуска същия брояч без нея. Ако си под 14, питай родител, преди да я включиш.</span></p>
       <p class="focus-safety-caveat"><span class="focus-safety-warning" aria-hidden="true">!</span><span data-i18n="focus.cameraLimit">Face matching is a session check, not secure identity authentication or liveness detection.</span></p>
     </div>
   </div>
@@ -1300,6 +1314,7 @@
   <div id="focusIdle" class="focus-stage hidden">
     <div class="controls">
       <button id="focusStartBtn" class="btn-primary" type="button" data-i18n="focus.startBtn">Започни сесия</button>
+      <button id="focusPlainBtn" class="btn-ghost" type="button" data-i18n="focus.plainBtn">Започни без камера</button>
     </div>
   </div>
 

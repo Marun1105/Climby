@@ -177,7 +177,7 @@ def export_data(
             "at": _iso(b.created_at),
         } for b in briefs],
         "study_sessions": [{
-            "duration_seconds": s.duration_seconds, "focus_pct": s.focus_pct, "at": _iso(s.created_at),
+            "duration_seconds": s.duration_seconds, "at_desk_pct": s.presence_pct, "at": _iso(s.created_at),
         } for s in sessions],
         "rope_team": {
             "parents_with_access": [{"name": n, "since": _iso(at)} for n, at in parents],

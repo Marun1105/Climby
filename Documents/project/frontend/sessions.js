@@ -7,13 +7,17 @@
 //
 // So: the last sessions, newest first, each openable for its detail. Only what
 // is really stored — when it started, how long it ran, and how much of the
-// watched time was spent facing the work. Nothing is inferred and nothing is
+// watched time someone was at the desk. Nothing is inferred and nothing is
 // invented, because a number a student cannot trust is worse than no number.
 const Sessions = (() => {
   const BACKEND = window.CLIMBY_BACKEND;
   const SHOWN = 10;          // the server keeps 30; a wall of them helps nobody
 
   function t(key, vars) { return window.t ? window.t(key, vars) : key; }
+
+  // Time at the desk, as a share of the watched time. focus_pct is the same
+  // number from a server that has not been updated yet.
+  const pct = session => (session.presence_pct ?? session.focus_pct ?? null);
 
   function minutes(seconds) {
     const m = Math.round(seconds / 60);
@@ -93,26 +97,26 @@ const Sessions = (() => {
       body.appendChild(line);
     }
 
-    // focus_pct is null when the camera was off for the whole session. Saying
+    // presence_pct is null when the camera was off for the whole session. Saying
     // so is better than printing 0%, which reads as "you did not work".
     const line = document.createElement('div');
     line.className = 'session-line';
     const k = document.createElement('span'); k.textContent = t('sessions.focus');
     const v = document.createElement('strong');
-    if (session.focus_pct === null || session.focus_pct === undefined) {
+    if (pct(session) === null) {
       v.textContent = t('sessions.noCamera');
       v.className = 'session-dim';
     } else {
-      v.textContent = session.focus_pct + '%';
+      v.textContent = pct(session) + '%';
     }
     line.append(k, v);
     body.appendChild(line);
 
-    if (session.focus_pct !== null && session.focus_pct !== undefined) {
+    if (pct(session) !== null) {
       const bar = document.createElement('div');
       bar.className = 'session-bar';
       const fill = document.createElement('span');
-      fill.style.width = Math.max(0, Math.min(100, session.focus_pct)) + '%';
+      fill.style.width = Math.max(0, Math.min(100, pct(session))) + '%';
       bar.appendChild(fill);
       body.appendChild(bar);
       const note = document.createElement('p');

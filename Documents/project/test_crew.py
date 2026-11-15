@@ -390,6 +390,10 @@ def test_a_running_focus_session_shows_live_to_friends():
     _, hb = _login("crew-lb@example.com")
     _setup(ha, "live_a"); _setup(hb, "live_b")
     _friends(ha, hb, "live_b", "live_a")
+    # studying invisibly is the default: nothing shows until the student says so
+    client.post("/crew/live", json={"on": True}, headers=ha)
+    assert client.get("/crew", headers=hb).json()["friends"][0]["live"] is False
+    assert client.post("/crew/sharing", json={"live": True}, headers=ha).json()["share_live"] is True
     client.post("/crew/live", json={"on": True}, headers=ha)
     friend = client.get("/crew", headers=hb).json()["friends"][0]
     assert friend["live"] is True and friend["live_minutes"] >= 1
@@ -603,3 +607,44 @@ def test_the_counter_endpoint_counts_without_crew():
     holds.on_solved(db, uid, "q-counter")
     db.commit(); db.close()
     assert client.get("/crew/holds", headers=h).json() == {"total": holds.SOLVED, "week": holds.SOLVED}
+
+
+def test_points_and_streak_reach_friends_only_when_shared():
+    ua, ha = _login("crew-pta@example.com")
+    _, hb = _login("crew-ptb@example.com")
+    _setup(ha, "share_a"); _setup(hb, "share_b")
+    _friends(ha, hb, "share_b", "share_a")
+    db = SessionLocal()
+    holds.award(db, ua, "task", "share-ref", 3)
+    db.commit(); db.close()
+    me = client.get("/crew", headers=ha).json()["me"]
+    assert me["holds_week"] == 3 and me["share_points"] is False and me["share_live"] is False
+    seen = client.get("/crew", headers=hb).json()["friends"][0]
+    assert seen["holds_week"] == 0 and seen["streak"] == 0 and seen["shares_points"] is False
+    client.post("/crew/sharing", json={"points": True}, headers=ha)
+    seen = client.get("/crew", headers=hb).json()["friends"][0]
+    assert seen["holds_week"] == 3 and seen["shares_points"] is True
+
+
+def test_switching_studying_now_off_hides_a_running_session_at_once():
+    _, ha = _login("crew-ia@example.com")
+    _, hb = _login("crew-ib@example.com")
+    _setup(ha, "inv_a"); _setup(hb, "inv_b")
+    _friends(ha, hb, "inv_b", "inv_a")
+    client.post("/crew/sharing", json={"live": True}, headers=ha)
+    client.post("/crew/live", json={"on": True}, headers=ha)
+    assert client.get("/crew", headers=hb).json()["friends"][0]["live"] is True
+    client.post("/crew/sharing", json={"live": False}, headers=ha)
+    assert client.get("/crew", headers=hb).json()["friends"][0]["live"] is False
+
+
+def test_friends_come_by_name_not_by_points():
+    _, hm = _login("crew-o0@example.com")
+    _setup(hm, "order_me")
+    for i, name in enumerate(["zed", "amy", "kim"]):
+        _, h = _login(f"crew-o{i + 1}@example.com")
+        _setup(h, f"order_{name}")
+        client.patch("/account/profile", json={"display_name": name.title()}, headers=h)
+        _friends(hm, h, f"order_{name}", "order_me")
+    names = [f["name"] for f in client.get("/crew", headers=hm).json()["friends"]]
+    assert names == sorted(names, key=str.lower)

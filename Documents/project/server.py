@@ -240,6 +240,31 @@ class MemorySelection(BaseModel):
     personal_note: Optional[str] = Field(default=None, max_length=600)
 
 
+def _validate_images(images: List[str]) -> List[str]:
+    if len(images) > MAX_ASK_IMAGES:
+        raise ValueError(TOO_MANY_IMAGES_MESSAGE)
+    # Редът е нарочен: първо евтините проверки за дължина, чак после декодиране —
+    # оразмерена атака не бива да ни кара да разпакетираме мегабайти, за да я откажем.
+    total = 0
+    for img in images:
+        if len(img) > MAX_ASK_IMAGE_CHARS:
+            raise ValueError("Снимката е твърде голяма — сканирай я пак от приложението.")
+        total += len(img)
+    if total > MAX_ASK_IMAGES_CHARS:
+        raise ValueError("Снимките са твърде големи общо — прати ги на по-малко части.")
+
+    for img in images:
+        if _image_media_type(img) is None:
+            raise ValueError("Една от снимките не е разпознаваем образ.")
+        try:
+            # Пълното декодиране е единственият честен начин да проверим, че и
+            # останалата част е валиден base64; резултатът се изхвърля веднага.
+            base64.b64decode(img, validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("Една от снимките не е валиден base64.")
+    return images
+
+
 class Ask(BaseModel):
     # Без таван един клиент в рамките на лимита може да прати десетки снимки в
     # пълен размер наведнъж — сметката при Anthropic е за негова сметка, но се
@@ -275,28 +300,7 @@ class Ask(BaseModel):
     @field_validator("images")
     @classmethod
     def _check_images(cls, images: List[str]) -> List[str]:
-        if len(images) > MAX_ASK_IMAGES:
-            raise ValueError(TOO_MANY_IMAGES_MESSAGE)
-        # Редът е нарочен: първо евтините проверки за дължина, чак после декодиране —
-        # оразмерена атака не бива да ни кара да разпакетираме мегабайти, за да я откажем.
-        total = 0
-        for img in images:
-            if len(img) > MAX_ASK_IMAGE_CHARS:
-                raise ValueError("Снимката е твърде голяма — сканирай я пак от приложението.")
-            total += len(img)
-        if total > MAX_ASK_IMAGES_CHARS:
-            raise ValueError("Снимките са твърде големи общо — прати ги на по-малко части.")
-
-        for img in images:
-            if _image_media_type(img) is None:
-                raise ValueError("Една от снимките не е разпознаваем образ.")
-            try:
-                # Пълното декодиране е единственият честен начин да проверим, че и
-                # останалата част е валиден base64; резултатът се изхвърля веднага.
-                base64.b64decode(img, validate=True)
-            except (binascii.Error, ValueError):
-                raise ValueError("Една от снимките не е валиден base64.")
-        return images
+        return _validate_images(images)
 
 
 RATE_LIMIT_MESSAGE = {
@@ -705,10 +709,10 @@ def _memory_context(db: Session, user: User, lang: str, selection: MemorySelecti
                     .limit(7).all())
         if sessions:
             minutes = sum(max(0, item.duration_seconds) for item in sessions) // 60
-            scores = [item.focus_pct for item in sessions if item.focus_pct is not None]
+            # Minutes only. The camera's at-the-desk figure stays out of what the
+            # tutor is told: it is the student's own number, and a tutor that
+            # knows it is one step from commenting on attention.
             summary = f"- {len(sessions)} recent sessions, {minutes} minutes total"
-            if scores:
-                summary += f", {round(sum(scores) / len(scores))}% average focus"
             lines.extend([
                 "Selected focus-session summary:" if lang == "en" else "Избрано обобщение на фокус сесиите:",
                 summary,
@@ -874,6 +878,49 @@ def memory_preview(body: MemoryPreview, request: Request,
         text_ += _grade_register(user, lang)
     text_ += _memory_context(db, user, lang, body.memory)
     return {"text": text_.strip()}
+
+
+class ReadPages(BaseModel):
+    images: List[str] = Field(min_length=1)
+    question: str = Field(min_length=1, max_length=2000)
+    lang: str = Field(default="en", max_length=16)
+
+    @field_validator("images")
+    @classmethod
+    def _check(cls, v):
+        return _validate_images(v)
+
+
+@app.post("/read")
+def read_pages(
+    body: ReadPages,
+    request: Request,
+    response: Response,
+    user: Optional[User] = Depends(auth.get_current_user_optional),
+    db: Session = Depends(get_db),
+):
+    """The first half of a first question: read the photographs, answer nothing.
+
+    /ask used to do both in one request, so the student waited 30-40 seconds
+    looking at steps that advanced on a timer. Split in two, the app can show
+    what was read as soon as it exists — a misread number is caught before the
+    explanation built on it — and each stage on screen is a real one. The
+    follow-up /ask names the page by brief_id, exactly as replies always have.
+
+    Counts against the same hourly limit and the same daily budget as /ask.
+    503 when the page could not be read: the app then sends the photographs
+    to /ask itself, which is the path that existed before.
+    """
+    lang = body.lang if body.lang in SYSTEM else "en"
+    if user is None and request.headers.get("authorization", "").startswith("Bearer "):
+        response.headers["X-Climby-Session"] = "expired"
+    rate_limit.enforce(request, "read", max_calls=30 if user else 12, window_seconds=3600,
+                       message=RATE_LIMIT_MESSAGE[lang], user=user)
+    usage.guard(db, lang, request, "read", user)
+    brief = _read_pages(db, body, user, lang)
+    if brief is None:
+        raise HTTPException(503, TUTOR_ERROR_MESSAGE[lang])
+    return {"brief_id": brief.id, "read": brief.read_text}
 
 
 @app.post("/ask")
