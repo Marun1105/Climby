@@ -24,10 +24,34 @@
 >   easy-reading setting shortens them.
 > - Earlier: 36, 38, 39 and the common-password check.
 >
-> Not built: 4 (stronger parent confirmation), 6 (friend suggestions and search
-> remain), 7–8 (who-can-see-what screen, privacy text per age), 13–14, 16
-> (streaming, uncertain-symbol marks), 20, 22–26, streak pause days, 30–33, 35,
-> 37, 40–42, 45–53.
+> - **Second round, same day.** 6 (friends are found by the whole username only;
+>   nobody is suggested), 7 (Settings → Who can see what), 13 (a "what have you
+>   tried?" box during the wait), 16 (the reader says in words what it was
+>   unsure of), 20, 22, 25 (tutor rules: no numbered hints, talk about the work,
+>   one unaided check at the end), 27 (rest days), 33 (a line for parents), 37
+>   (e-mail and phone checked when the field is left), 40 (questions left, in
+>   words), 46 (a remembered read-aloud speed), 48 (Settings shows one category
+>   at a time).
+> - **45, contrast.** axe-core was run on seven screens in the dark and the light
+>   theme: no contrast or target-size failures among the elements it could
+>   judge (about 600 checks). It could not judge roughly 80 elements that sit on
+>   gradients or drawings, most of them on the Friends screen; those need eyes.
+>
+> Not built, and why:
+>
+> - **14, streaming.** The tutor may consult a second model and search the web
+>   mid-answer, and what it says before that is deliberately dropped; markers
+>   for tasks, quizzes and solved steps are stripped at the end. Streaming the
+>   words as they come would show all of that. It needs a design that buffers
+>   up to the last tool call, and a test against the real model, which cannot
+>   be run from here. The research itself rates the evidence for it as weak.
+> - **4, stronger parent confirmation**, and **8, privacy text per age group.**
+>   Both are decisions about consent and legal wording that the owner (and
+>   ideally a lawyer) should make; code can follow in a day.
+> - **The face match** at the start of a camera session is unchanged.
+> - Smaller ones left: 23–24, 26 (chat scoped to a step, one step per card,
+>   a break prompt after long sessions), 30–32, 35 (a pass over empty screens),
+>   41–42 (a copy review in both languages), 47, 49–53.
 
 Climby's next gains are not in the sign-up form any more. They sit in four places: the camera timer, the 30–40-second wait for the first answer, the "full solution on request" button, and a handful of defaults (dark theme, seven-stop tour, streak with no off switch) that cut against the best available evidence. The single highest risk is legal, not visual: inferring a student's attention or emotion from a camera in an education setting has been a prohibited AI practice in the EU since 2 February 2025, so the stored "presence percentage" must stay a plain count of time at the desk and must never be labelled, computed or shared as focus. The single largest usability defect is the wait, which is three to four times past the 10-second limit for holding attention; it needs a real progress indicator, a stated time estimate, and the page transcription shown as soon as it exists. The tutoring design is right in principle, but twenty years of tutoring research says an answer button alone gets clicked through, while a 2026 trial shows a tutor that only refuses goes unused, so the answer should unlock after a real attempt. Most of what Climby already does for motivation (one forgiven day, points that buy nothing, no chat, numbers-only adult views) matches the evidence and should be kept. The honest limit of this report: almost none of the evidence was gathered on Bulgarian students or on 12–18-year-olds using AI tutors, several legal texts were read only through law-firm or NGO summaries, and each recommendation below says so where it applies.
 

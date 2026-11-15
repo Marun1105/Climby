@@ -10,10 +10,11 @@
 //   tutor    hints | full                  how much the tutor holds back
 //   streak   on | off                      show the days-in-a-row count at all
 //   rest     none | weekend                days off that never break a run
+//   speed    0.8 | 1 | 1.25                how fast answers are read aloud
 const Prefs = (() => {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
-  const DEFAULTS = { text: 'normal', reading: 'normal', autoread: 'off', tutor: 'hints', streak: 'on', rest: 'none' };
+  const DEFAULTS = { text: 'normal', reading: 'normal', autoread: 'off', tutor: 'hints', streak: 'on', rest: 'none', speed: '1' };
 
   function read(key) {
     try { return localStorage.getItem('climby-pref-' + key) || DEFAULTS[key]; }

@@ -5865,3 +5865,6 @@ html[data-reading="easy"] .chat-msg p { max-width: 58ch; }
 .whosees-never { border-color: color-mix(in srgb, var(--green, #2da44e) 45%, var(--border)); }
 
 .onboarding-count { margin: 6px 0 0; font-size: 12.5px; color: var(--text-faint); text-align: center; min-height: 1.2em; }
+
+/* Settings shows one category at a time; the list on the left chooses. */
+#settingsOverlay .settings-group:not(.is-shown) { display: none; }

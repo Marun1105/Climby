@@ -575,6 +575,23 @@ const Auth = (() => {
 
     $('registerUsername').addEventListener('input', checkUsernameSoon);
     $('registerEmail').addEventListener('blur', suggestUsernameFromEmail);
+    // E-mail and phone: said when the field is left, not while it is first being
+    // typed ("that is not an address" three letters in is noise). Once a
+    // message is showing it is re-checked on every key, so it goes away the
+    // moment the field is right.
+    const watch = (inputId, statusId, problem) => {
+      const input = $(inputId), status = $(statusId);
+      const check = () => {
+        const key = input.value.trim() ? problem(input.value.trim()) : null;
+        status.textContent = key ? t(key) : '';
+        status.classList.toggle('hidden', !key);
+        status.classList.toggle('is-bad', !!key);
+      };
+      input.addEventListener('blur', check);
+      input.addEventListener('input', () => { if (!status.classList.contains('hidden')) check(); });
+    };
+    watch('registerEmail', 'registerEmailStatus', v => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? null : 'auth.emailLooksOff'));
+    watch('registerPhone', 'registerPhoneStatus', v => (/^\+?[\d\s().-]{7,}$/.test(v) ? null : 'auth.phoneLooksOff'));
     $('registerPassword').addEventListener('focus', loadCommonPasswords);
     $('resetPassword').addEventListener('focus', loadCommonPasswords);
     $('registerPassword').addEventListener('input', () =>
