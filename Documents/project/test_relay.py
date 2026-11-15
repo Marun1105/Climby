@@ -264,7 +264,9 @@ def test_the_tutor_has_the_advisor_and_a_fenced_search(monkeypatch):
     assert adv["model"] == relay.ADVISOR_MODEL
     assert adv["max_uses"] == 1, "one consultation per message — do not overdo it"
     assert adv["max_tokens"] == 2000, "uncapped it took 82 seconds"
-    search = tools["web_search"]
+    # this question came from a guest: the advisor, but no web search
+    assert "web_search" not in tools
+    search = {t["name"]: t for t in relay.tutor_tools()}["web_search"]
     for site in ("domashno.bg", "zadachite.net", "gdz.ru"):
         assert site in search["blocked_domains"], f"{site} is an answer key"
     assert relay.ADVISOR_BETA in _tutors(calls)[0]["betas"]

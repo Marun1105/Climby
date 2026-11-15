@@ -12,6 +12,9 @@ from db import get_db
 from models import FocusSession, User
 from schemas import FocusSessionIn, FocusSessionOut
 
+# Clocks differ a little, and the save takes a moment.
+CLOCK_SLACK_SECONDS = 120
+
 router = APIRouter(prefix="/focus", tags=["focus"])
 
 # кратки/случайни сесии не бива да броят за статистиката
@@ -36,6 +39,13 @@ def create_session(
     )
     db.add(session)
     db.flush()
+    # The length comes from the app; what the server can vouch for is how much
+    # time has passed since the previous session was saved (or the account was
+    # made). Points were already limited to that — the minutes a parent or a
+    # teacher sees were not, and a hand-made request could claim 24 hours.
+    honest = int(holds._real_time_before(db, user.id, session)) + CLOCK_SLACK_SECONDS
+    if session.duration_seconds > honest:
+        session.duration_seconds = honest
     # a hold per full quarter hour, capped per day — in a savepoint, so the
     # session is saved even if this fails
     holds.safely(db, "focus", holds.on_focus, user.id, session)

@@ -1,2 +1,2 @@
 # What the tests need on top of requirements.txt.
-pytest
+pytest==9.2.0

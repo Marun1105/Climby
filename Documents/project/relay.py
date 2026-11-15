@@ -139,14 +139,16 @@ def read_pages(client, image_blocks, question, lang, grade=None):
 
 # ------------------------------------------------------------------ the tutor
 
-def tutor_tools():
-    """The advisor, and a fenced web search. Both on every tutor turn."""
-    return [
+def tutor_tools(search: bool = True):
+    """The advisor on every tutor turn, and a fenced web search unless switched off."""
+    tools = [
         {"type": "advisor_20260301", "name": "advisor", "model": ADVISOR_MODEL,
          "max_uses": 1, "max_tokens": ADVISOR_MAX_TOKENS},
-        {"type": "web_search_20250305", "name": "web_search",
-         "max_uses": SEARCH_MAX_USES, "blocked_domains": ANSWER_KEY_SITES},
     ]
+    if search:
+        tools.append({"type": "web_search_20250305", "name": "web_search",
+                      "max_uses": SEARCH_MAX_USES, "blocked_domains": ANSWER_KEY_SITES})
+    return tools
 
 
 # When to call the advisor has to be said exactly. With no instruction Haiku

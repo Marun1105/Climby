@@ -97,6 +97,9 @@ app.include_router(tts.router)
 MAX_BODY_BYTES = 8 * 1024 * 1024
 
 BODY_TOO_LARGE_MESSAGE = "That request is too large."
+BIG_UPLOAD_BYTES = 200 * 1024
+BIG_UPLOADS_PER_HOUR = 400
+TOO_MANY_UPLOADS_MESSAGE = "Too many uploads from this network in a short time. Please wait a little and try again."
 
 
 class _BodyTooLarge(Exception):
@@ -124,6 +127,22 @@ class BodySizeLimitMiddleware:
         if declared and declared.isdigit() and int(declared) > self.max_bytes:
             await self._reject(scope, receive, send)
             return
+
+        # A large upload is parsed and base64-decoded before the handler's own
+        # rate limit is reached, so a loop of big anonymous requests could keep
+        # the server busy without ever touching a limit. This brake comes first
+        # and counts by address. It is generous on purpose — a whole school can
+        # sit behind one address — and only applies to bodies big enough to be
+        # photographs.
+        big = (not declared) or (declared.isdigit() and int(declared) > BIG_UPLOAD_BYTES)
+        if scope.get("method") == "POST" and big:
+            try:
+                rate_limit.enforce(Request(scope), "big-upload", max_calls=BIG_UPLOADS_PER_HOUR,
+                                   window_seconds=3600, message=TOO_MANY_UPLOADS_MESSAGE)
+            except HTTPException as refused:
+                response = JSONResponse({"detail": refused.detail}, status_code=refused.status_code)
+                await response(scope, receive, send)
+                return
 
         seen = 0
         started = False
@@ -1348,6 +1367,10 @@ BRIEF_GONE_MESSAGE = {
 }
 
 GUEST_BRIEF_TTL_HOURS = 24
+# A signed-in student's page is useful while the conversation about it is
+# open. After a month nothing in the app can reach it any more, and it was
+# kept for good — up to 50 KB of a child's homework per page.
+OWNED_BRIEF_TTL_DAYS = 30
 
 
 def _sweep_guest_briefs(db: Session) -> None:
@@ -1370,6 +1393,10 @@ def _sweep_guest_briefs(db: Session) -> None:
         db.query(ProblemBrief).filter(
             ProblemBrief.user_id.is_(None),
             ProblemBrief.created_at < cutoff,
+        ).delete(synchronize_session=False)
+        db.query(ProblemBrief).filter(
+            ProblemBrief.user_id.isnot(None),
+            ProblemBrief.created_at < datetime.now(timezone.utc) - timedelta(days=OWNED_BRIEF_TTL_DAYS),
         ).delete(synchronize_session=False)
         db.commit()
     except Exception as err:  # noqa: BLE001
@@ -1561,7 +1588,10 @@ def ask(
             # mid-sentence. Only the tokens actually written are billed.
             max_tokens=6000 if smart else 4000,
             betas=[relay.ADVISOR_BETA],
-            tools=relay.tutor_tools(),
+            # Web search is for signed-in students: a guest's question would put
+            # whatever a web page says in front of a child with nobody to answer for it,
+            # and it is the costliest part of an anonymous call.
+            tools=relay.tutor_tools(search=user is not None),
             system=system_blocks,
             messages=messages,
         )
