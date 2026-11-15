@@ -79,6 +79,29 @@ JWT_EXPIRE_DAYS = 30
 CODE_TTL_MINUTES = 15
 
 
+# Passwords everyone already knows. "12345678" and "password1" pass the length
+# rule and are the first things anyone guessing would try. The list is the ten
+# thousand most common leaked passwords (tools/build_common_passwords.py);
+# checked here, on the server, and by the app while the person types. Nothing
+# is sent anywhere to check it.
+def _load_common_passwords() -> frozenset:
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "common_passwords.txt")
+        with open(path, encoding="utf-8") as f:
+            return frozenset(line.strip() for line in f if line.strip())
+    except OSError:
+        print("[security] common_passwords.txt is missing — common passwords are not being refused", file=sys.stderr)
+        return frozenset()
+
+
+COMMON_PASSWORDS = _load_common_passwords()
+COMMON_PASSWORD_MESSAGE = "That password is one of the most commonly used ones and is easy to guess. Please choose another."
+
+
+def is_common_password(password: str) -> bool:
+    return (password or "").strip().lower() in COMMON_PASSWORDS
+
+
 def hash_password(password: str) -> str:
     return _hash(password)
 

@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 import rate_limit
@@ -40,6 +40,13 @@ class PasswordChange(BaseModel):
     # yet, and setting a first one is how it gains a second way in.
     current_password: Optional[str] = Field(default=None, max_length=200)
     new_password: str = Field(min_length=8, max_length=200)
+
+    @field_validator("new_password")
+    @classmethod
+    def _not_common(cls, v):
+        if security.is_common_password(v):
+            raise ValueError(security.COMMON_PASSWORD_MESSAGE)
+        return v
 
 
 class PasswordChanged(BaseModel):

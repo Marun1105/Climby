@@ -168,6 +168,16 @@ AI budget in tokens; default 3,000,000, 0 for none).
 `python seed_demo_accounts.py` makes a student, a parent and a teacher account on
 the local database, so every screen can be opened without registering.
 
+### Data that is generated, not typed
+
+- `frontend/places.json` — every country in English and Bulgarian, every Bulgarian
+  town and village, and elsewhere every place of 15,000 people or more. Built by
+  `tools/build_places.py` from [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries)
+  (MIT) and [GeoNames](https://www.geonames.org) (CC BY 4.0).
+- `common_passwords.txt` and `frontend/common-passwords.txt` — the most common
+  leaked passwords, refused at sign-up. Built by `tools/build_common_passwords.py`
+  from [SecLists](https://github.com/danielmiessler/SecLists) (MIT).
+
 ### Tests
 
 ```bash

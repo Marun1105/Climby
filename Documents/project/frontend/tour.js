@@ -18,12 +18,14 @@ const Tour = (() => {
   // Order is the order a person meets things: the AI first, because it is the
   // reason they came; the rest in the order of the sidebar.
   const STOPS = [
-    { view: 'tutor',     target: '.nav-link[data-view="tutor"]',     title: 'tour.aiTitle',      body: 'tour.aiBody' },
+    // Three stops, not seven. In usability tests people who skipped a tutorial
+    // did no worse than those who sat through it, and a new student has already
+    // passed a welcome, a form, a code and a few questions. So the tour shows
+    // only what is not obvious from looking — where a page goes in, the chat
+    // that follows you around, and where everything else lives. The menu items
+    // explain themselves, and each empty screen says what it is for.
     { view: 'tutor',     target: '.entry-choices',                   title: 'tour.entryTitle',   body: 'tour.entryBody' },
-    { view: 'focus',     target: '.nav-link[data-view="focus"]',     title: 'tour.focusTitle',   body: 'tour.focusBody' },
-    { view: 'checklist', target: '.nav-link[data-view="checklist"]', title: 'tour.routeTitle',   body: 'tour.routeBody' },
-    { view: 'history',   target: '.nav-link[data-view="history"]',   title: 'tour.historyTitle', body: 'tour.historyBody' },
-    { view: 'tutor',     target: '#view-tutor .help-toggle',         title: 'tour.helpTitle',    body: 'tour.helpBody' },
+    { view: 'tutor',     target: '#aiFab',                           title: 'tour.chatTitle',    body: 'tour.chatBody' },
     { view: 'tutor',     target: '#settingsMenuBtn',                 title: 'tour.doneTitle',    body: 'tour.doneBody', openMenu: true },
   ];
 

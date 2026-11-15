@@ -860,3 +860,25 @@ def test_resetting_by_email_verifies_the_address(codes):
         "channel": "email", "contact": email, "code": codes[-1], "new_password": "brand-new-pass-1"})
     assert res.status_code == 200, res.text
     assert _login(email, "brand-new-pass-1").status_code == 200
+
+
+def test_a_password_everyone_knows_is_refused():
+    """'12345678' and 'password1' pass the length rule and are the first
+    guesses anyone would make."""
+    for pw in ("12345678", "Password1", "qwertyuiop"):
+        res = _register(f"common-{pw.lower()}@example.com", pw)
+        assert res.status_code == 422, pw
+        assert "commonly used" in res.json()["detail"]
+    assert _register("uncommon-pass@example.com", "three-quiet-otters").status_code == 200
+
+
+def test_the_username_check_says_taken_and_offers_free_ones():
+    _account("name-check@example.com", username="mila.k")
+    taken = client.get("/auth/username-check", params={"username": "Mila.K"}).json()
+    assert taken["ok"] is False and taken["reason"] == "taken"
+    assert taken["suggestions"] and all(s.startswith("mila.k") for s in taken["suggestions"])
+    for idea in taken["suggestions"]:
+        assert client.get("/auth/username-check", params={"username": idea}).json()["ok"] is True
+    assert client.get("/auth/username-check", params={"username": "free.name77"}).json()["ok"] is True
+    assert client.get("/auth/username-check", params={"username": "support"}).json()["reason"] == "taken"
+    assert client.get("/auth/username-check", params={"username": "a b"}).json()["reason"] == "invalid"

@@ -134,6 +134,8 @@
         <input id="registerUsername" type="text" placeholder=" " autocomplete="username" maxlength="20">
         <label for="registerUsername" data-i18n="auth.usernameLabel">Потребителско име</label>
       </div>
+      <!-- Said next to the field a moment after typing stops: free, taken (with free ones to pick), or the rule. -->
+      <p id="registerUsernameStatus" class="field-status hidden" role="status" aria-live="polite"></p>
       <div class="field">
         <span class="field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
         <input id="registerEmail" type="email" placeholder=" " autocomplete="email">

@@ -3,6 +3,8 @@ import re
 from datetime import date, datetime
 from typing import List, Literal, Optional
 
+import security
+
 from pydantic import AliasChoices, BaseModel, EmailStr, ConfigDict, Field, field_validator
 
 
@@ -47,12 +49,19 @@ def _check_phone(v):
     return v
 
 
+def _check_new_password(v):
+    """For a password being chosen (not one being typed to sign in)."""
+    if isinstance(v, str) and security.is_common_password(v):
+        raise ValueError(security.COMMON_PASSWORD_MESSAGE)
+    return v
+
+
 def _check_password_length(v: str) -> str:
     if len(v) < 8:
         raise ValueError("Паролата трябва да е поне 8 символа")
     if len(v) > 128:
         raise ValueError("Паролата е твърде дълга")
-    return v
+    return _check_new_password(v)
 
 
 # Затворен списък: свободният текст тук не става за нищо после, а и не искаме
@@ -78,6 +87,8 @@ class RoleRequest(BaseModel):
 
 class SetPasswordRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
+
+    _not_common = field_validator("password")(_check_new_password)
 
 
 class RegisterRequest(BaseModel):

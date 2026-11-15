@@ -34,38 +34,23 @@ const Onboarding = (() => {
       + (ICON_PATHS[name] || '') + '</svg>';
   }
 
-  // [stored value, English, Bulgarian]. The stored value is the English name, so
-  // the same place is the same word whichever language it was picked in.
-  const COUNTRIES = [
-    ['Bulgaria', 'Bulgaria', 'България'],
-    ['North Macedonia', 'North Macedonia', 'Северна Македония'],
-    ['Serbia', 'Serbia', 'Сърбия'],
-    ['Romania', 'Romania', 'Румъния'],
-    ['Greece', 'Greece', 'Гърция'],
-    ['Turkey', 'Turkey', 'Турция'],
-    ['Germany', 'Germany', 'Германия'],
-    ['United Kingdom', 'United Kingdom', 'Великобритания'],
-    ['Spain', 'Spain', 'Испания'],
-    ['Italy', 'Italy', 'Италия'],
-    ['France', 'France', 'Франция'],
-    ['Netherlands', 'Netherlands', 'Нидерландия'],
-    ['Austria', 'Austria', 'Австрия'],
-    ['United States', 'United States', 'САЩ'],
-    ['Canada', 'Canada', 'Канада'],
-    ['Other', 'Another country', 'Друга държава'],
-  ];
-  const BG_CITIES = [
-    ['Sofia', 'София'], ['Plovdiv', 'Пловдив'], ['Varna', 'Варна'], ['Burgas', 'Бургас'],
-    ['Ruse', 'Русе'], ['Stara Zagora', 'Стара Загора'], ['Pleven', 'Плевен'], ['Sliven', 'Сливен'],
-    ['Dobrich', 'Добрич'], ['Shumen', 'Шумен'], ['Pernik', 'Перник'], ['Haskovo', 'Хасково'],
-    ['Yambol', 'Ямбол'], ['Pazardzhik', 'Пазарджик'], ['Blagoevgrad', 'Благоевград'],
-    ['Veliko Tarnovo', 'Велико Търново'], ['Vratsa', 'Враца'], ['Gabrovo', 'Габрово'],
-    ['Asenovgrad', 'Асеновград'], ['Vidin', 'Видин'], ['Kazanlak', 'Казанлък'],
-    ['Kyustendil', 'Кюстендил'], ['Kardzhali', 'Кърджали'], ['Montana', 'Монтана'],
-    ['Dimitrovgrad', 'Димитровград'], ['Targovishte', 'Търговище'], ['Lovech', 'Ловеч'],
-    ['Silistra', 'Силистра'], ['Razgrad', 'Разград'], ['Smolyan', 'Смолян'],
-  ];
-  const OTHER = '__other';
+  // Countries and towns come from frontend/places.json, which
+  // tools/build_places.py generates from open data (ISO country names in both
+  // languages; GeoNames for the towns — every Bulgarian town and village, and
+  // elsewhere every place of 15,000 people or more). Nothing is typed by hand.
+  // It is half a megabyte, so it is fetched only when these questions open.
+  let places = null;
+  let placesLoading = null;
+  function loadPlaces() {
+    if (places) return Promise.resolve(places);
+    if (!placesLoading) {
+      placesLoading = fetch('places.json')
+        .then(r => { if (!r.ok) throw new Error('places ' + r.status); return r.json(); })
+        .then(d => { places = d; return d; })
+        .catch(() => { placesLoading = null; return null; });   // the fields still take typed text
+    }
+    return placesLoading;
+  }
 
   const HEARD = [
     ['friend', 'quiz.friend'], ['teacher', 'quiz.fromTeacher'], ['parent', 'quiz.fromParent'],
@@ -110,26 +95,6 @@ const Onboarding = (() => {
     }
   }
 
-  // The id is given by the caller, as a literal — the check that every id the
-  // script looks up really exists reads them from the source.
-  function select(label, options, current) {
-    const wrap = el('label', 'onboarding-field');
-    wrap.appendChild(el('span', 'onboarding-label', label));
-    const s = el('select', 'settings-select onboarding-select');
-    const blank = el('option', null, t('onb.choose'));
-    blank.value = '';
-    s.appendChild(blank);
-    for (const [value, text] of options) {
-      const o = el('option', null, text);
-      o.value = value;
-      s.appendChild(o);
-    }
-    s.value = options.some(o => o[0] === current) ? current : '';
-    wrap.appendChild(s);
-    wrap.control = s;
-    return wrap;
-  }
-
   function textField(label, value, placeholder, max) {
     const wrap = el('label', 'onboarding-field');
     wrap.appendChild(el('span', 'onboarding-label', label));
@@ -137,6 +102,118 @@ const Onboarding = (() => {
     i.type = 'text'; i.maxLength = max; i.value = value || ''; i.placeholder = placeholder || '';
     wrap.appendChild(i);
     wrap.control = i;
+    return wrap;
+  }
+
+  // A menu you can type into. With 250 countries and thousands of towns a
+  // plain menu means scrolling; typing two letters is faster and is what form
+  // research recommends for long lists. Options are {value, label, also}:
+  // `also` is the same place in the other language, so "Sofia" finds София.
+  // free: text that matches nothing is still an answer (a village not listed).
+  const norm = s => String(s || '').toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const SHOWN = 40;
+
+  function combo(label, { free, onChange }) {
+    const wrap = el('div', 'onboarding-field onboarding-combo');
+    const title = el('label', 'onboarding-label', label);
+    const input = el('input', 'onboarding-input');
+    const list = el('ul', 'onboarding-options hidden');
+    input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false;
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    list.setAttribute('role', 'listbox');
+    input.placeholder = t('onb.search');
+    wrap.append(title, input, list);
+
+    let options = [];
+    let picked = null;       // the chosen option's value
+    let active = -1;
+    let shown = [];
+
+    const close = () => { list.classList.add('hidden'); input.setAttribute('aria-expanded', 'false'); active = -1; };
+    const choose = o => {
+      picked = o.value;
+      input.value = o.label;
+      close();
+      if (onChange) onChange(picked);
+    };
+    const paint = () => {
+      [...list.children].forEach((li, i) => {
+        li.classList.toggle('is-active', i === active);
+        li.setAttribute('aria-selected', i === active ? 'true' : 'false');
+        if (i === active) li.scrollIntoView({ block: 'nearest' });
+      });
+    };
+    const draw = () => {
+      const q = norm(input.value.trim());
+      const starts = [], inside = [];
+      for (const o of options) {
+        if (!q) { starts.push(o); if (starts.length >= SHOWN) break; continue; }
+        const at = Math.min(...[o.key, o.alsoKey].map(k => { const i = k.indexOf(q); return i < 0 ? Infinity : i; }));
+        if (at === 0) starts.push(o); else if (at !== Infinity) inside.push(o);
+        if (starts.length >= SHOWN) break;
+      }
+      shown = starts.concat(inside).slice(0, SHOWN);
+      list.innerHTML = '';
+      for (const o of shown) {
+        const li = el('li', 'onboarding-option', o.label);
+        li.setAttribute('role', 'option');
+        // mousedown, not click: the input's blur would close the list first
+        li.addEventListener('mousedown', e => { e.preventDefault(); choose(o); });
+        list.appendChild(li);
+      }
+      if (!shown.length) {
+        const none = el('li', 'onboarding-option is-none', t(free ? 'onb.notListed' : 'onb.noMatch'));
+        list.appendChild(none);
+      }
+      active = -1;
+      list.classList.remove('hidden');
+      input.setAttribute('aria-expanded', 'true');
+    };
+
+    input.addEventListener('focus', draw);
+    input.addEventListener('input', () => {
+      const had = picked;
+      picked = null;
+      draw();
+      if (had !== null && onChange) onChange(null);
+    });
+    input.addEventListener('blur', () => {
+      // typed the whole name instead of picking it: that counts
+      if (picked === null) {
+        const q = norm(input.value.trim());
+        const exact = q && options.find(o => o.key === q || o.alsoKey === q);
+        if (exact) choose(exact);
+      }
+      close();
+    });
+    input.addEventListener('keydown', e => {
+      const open = !list.classList.contains('hidden');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!open) { draw(); return; }
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % (shown.length || 1);
+        paint();
+      } else if (e.key === 'Enter' && open && shown.length) {
+        e.preventDefault();
+        choose(shown[active >= 0 ? active : 0]);
+      } else if (e.key === 'Escape' && open) {
+        // closes the list only — not the whole set of questions
+        e.preventDefault(); e.stopPropagation();
+        close();
+      }
+    });
+
+    wrap.control = input;
+    wrap.setOptions = (opts, current) => {
+      options = opts.map(o => ({ ...o, key: norm(o.label), alsoKey: norm(o.also || o.value) }));
+      const found = current && options.find(o => o.value === current);
+      picked = found ? found.value : null;
+      input.value = found ? found.label : (free && current ? current : '');
+    };
+    // what was chosen — or, where free text is allowed, what was typed
+    wrap.answer = () => picked !== null ? picked : (free ? input.value.trim() : '');
     return wrap;
   }
 
@@ -161,41 +238,39 @@ const Onboarding = (() => {
     box.appendChild(school);
   }
 
-  function drawPlace(box) {
-    const countries = COUNTRIES.map(c => [c[0], bg() ? c[2] : c[1]]);
-    const country = select(t('onb.country'), countries, answers.country);
-    country.control.id = 'onbCountry';
-    box.appendChild(country);
-    const cityBox = el('div', 'onboarding-city');
-    box.appendChild(cityBox);
+  let countryBox = null;
+  let cityBox = null;
 
-    const drawCity = () => {
-      const chosen = $('onbCountry').value;
-      cityBox.innerHTML = '';
-      if (!chosen) return;
-      if (chosen === 'Bulgaria') {
-        const cities = BG_CITIES.map(c => [c[0], bg() ? c[1] : c[0]]);
-        cities.push([OTHER, t('onb.otherCity')]);
-        const known = BG_CITIES.some(c => c[0] === answers.city);
-        const city = select(t('onb.city'), cities, known ? answers.city : (answers.city ? OTHER : ''));
-        city.control.id = 'onbCity';
-        cityBox.appendChild(city);
-        const other = textField(t('onb.cityName'), known ? '' : answers.city, t('quiz.cityPlaceholder'), 80);
-        other.control.id = 'onbCityOther';
-        other.classList.toggle('hidden', $('onbCity').value !== OTHER);
-        cityBox.appendChild(other);
-        $('onbCity').addEventListener('change', () => {
-          other.classList.toggle('hidden', $('onbCity').value !== OTHER);
-          if ($('onbCity').value === OTHER) $('onbCityOther').focus();
-        });
-      } else {
-        const typed = textField(t('onb.city'), answers.city, t('quiz.cityPlaceholder'), 80);
-        typed.control.id = 'onbCityOther';
-        cityBox.appendChild(typed);
-      }
+  function drawPlace(box) {
+    const cityOptions = name => {
+      const entry = places && places.countries.find(c => c[1] === name);
+      const list = (entry && places.cities[entry[0]]) || [];
+      // Bulgarian places carry both names; elsewhere there is one
+      return list.map(c => Array.isArray(c)
+        ? { value: c[0], label: bg() ? c[1] : c[0], also: bg() ? c[0] : c[1] }
+        : { value: c, label: c });
     };
-    $('onbCountry').addEventListener('change', () => { answers.city = null; drawCity(); });
-    drawCity();
+    cityBox = combo(t('onb.city'), { free: true });
+    cityBox.control.id = 'onbCity';
+    countryBox = combo(t('onb.country'), {
+      free: false,
+      onChange: name => { answers.city = null; cityBox.setOptions(cityOptions(name), null); },
+    });
+    countryBox.control.id = 'onbCountry';
+    box.append(countryBox, cityBox);
+
+    const fill = () => {
+      if (!places) return;
+      // Nothing is filled in for the person — an answer they did not give is
+      // not an answer — but the likeliest country is put at the top of the list.
+      const likely = bg() || /-BG$/i.test(navigator.language || '') ? 'Bulgaria' : null;
+      const list = places.countries.map(c => ({ value: c[1], label: bg() ? c[2] : c[1], also: bg() ? c[1] : c[2] }));
+      list.sort((a, b) => (b.value === likely) - (a.value === likely) || a.label.localeCompare(b.label, bg() ? 'bg' : 'en'));
+      countryBox.setOptions(list, answers.country);
+      cityBox.setOptions(cityOptions(answers.country), answers.city);
+    };
+    fill();
+    if (!places) loadPlaces().then(() => { if (steps[index] === 'place' && countryBox && countryBox.isConnected) fill(); });
   }
 
   // What is on screen right now, into `answers`. Called before leaving a step
@@ -206,12 +281,10 @@ const Onboarding = (() => {
       const school = $('onbSchool') ? $('onbSchool').value.trim() : '';
       if (school) answers.school = school;
     } else if (step === 'place') {
-      const country = $('onbCountry') ? $('onbCountry').value : '';
+      const country = countryBox ? countryBox.answer() : '';
       if (country) answers.country = country;
-      const pick = $('onbCity') ? $('onbCity').value : OTHER;
-      const typed = $('onbCityOther') ? $('onbCityOther').value.trim() : '';
-      const city = pick && pick !== OTHER ? pick : typed;
-      if (city) answers.city = city;
+      const city = cityBox ? cityBox.answer() : '';
+      if (city) answers.city = city.slice(0, 80);
     }
   }
 
@@ -378,6 +451,7 @@ const Onboarding = (() => {
     document.documentElement.classList.add('onboarding-open');
     $('onboarding').classList.remove('hidden');
     render();
+    loadPlaces();   // ready by the time the question about place comes
   }
 
   function init() {

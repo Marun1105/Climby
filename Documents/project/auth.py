@@ -13,6 +13,10 @@ import security
 import sms_service
 from db import get_db
 from models import CodeAttempt, CodePurpose, User, VerificationCode
+import re
+import secrets
+
+from schemas import RESERVED_USERNAMES
 from schemas import (
     AddPhoneRequest,
     AuthResponse,
@@ -293,6 +297,44 @@ def get_current_user_optional(
 
 
 TERMS_NEEDED = "Please agree to the Terms and the Privacy policy to continue."
+
+
+# Is this username free? Asked by the sign-up form a moment after the person
+# stops typing, so "taken" is said next to the field instead of after pressing
+# the button. It tells nobody anything they could not learn already: Friends
+# finds people by username. Limited per address all the same.
+USERNAME_SHAPE = re.compile(r"^[a-zA-Z0-9_.]{3,20}$")
+
+
+def _username_taken(db: Session, name: str) -> bool:
+    return db.query(User.id).filter(func.lower(User.username) == name.lower()).first() is not None
+
+
+def _username_ideas(db: Session, base: str, want: int = 3) -> list:
+    """A few free names close to the one asked for."""
+    base = re.sub(r"[^a-z0-9_.]", "", base.lower())[:16].strip("._") or "student"
+    if len(base) < 3:
+        base = (base + "student")[:16]
+    ideas, tries = [], 0
+    while len(ideas) < want and tries < 12:
+        tries += 1
+        candidate = f"{base}{secrets.randbelow(900) + 100}" if tries > 1 or _username_taken(db, base) else base
+        if (candidate not in ideas and candidate not in RESERVED_USERNAMES
+                and USERNAME_SHAPE.match(candidate) and not _username_taken(db, candidate)):
+            ideas.append(candidate)
+    return ideas
+
+
+@router.get("/username-check")
+def username_check(request: Request, username: str = "", db: Session = Depends(get_db)):
+    rate_limit.enforce(request, "username-check", max_calls=120, window_seconds=600,
+                       message="Too many checks. Please wait a moment.")
+    name = (username or "").strip()[:40]
+    if not USERNAME_SHAPE.match(name):
+        return {"ok": False, "reason": "invalid", "suggestions": _username_ideas(db, name) if name else []}
+    if name.lower() in RESERVED_USERNAMES or _username_taken(db, name):
+        return {"ok": False, "reason": "taken", "suggestions": _username_ideas(db, name)}
+    return {"ok": True, "reason": None, "suggestions": []}
 
 
 REGISTER_PER_HOUR = 40

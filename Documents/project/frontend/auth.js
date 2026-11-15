@@ -208,6 +208,100 @@ const Auth = (() => {
 
   const PW_MIN = 8;   // the same minimum the server enforces
 
+  // The ten thousand passwords everyone already knows (common-passwords.txt,
+  // built by tools/build_common_passwords.py from a published list). Fetched
+  // the first time a new password is being typed; the server checks the same
+  // list, so this only makes the answer arrive while typing.
+  let commonPasswords = null;
+  let commonLoading = null;
+  function loadCommonPasswords() {
+    if (commonPasswords || commonLoading) return;
+    commonLoading = fetch('common-passwords.txt')
+      .then(r => (r.ok ? r.text() : ''))
+      .then(text => {
+        commonPasswords = new Set(text.split('\n').filter(Boolean));
+        // whatever is already typed is judged again now that the list is here
+        updatePwStrength('registerPassword', 'registerPwStrength', 'registerPwBar', 'registerPwLabel');
+        updatePwStrength('resetPassword', 'resetPwStrength', 'resetPwBar', 'resetPwLabel');
+      })
+      .catch(() => { commonLoading = null; });
+  }
+  function isCommonPassword(pw) {
+    return !!(commonPasswords && commonPasswords.has(String(pw).trim().toLowerCase()));
+  }
+
+  // ---------- username: free or taken, said while typing ----------
+  //
+  // The check waits until typing pauses (a request per keystroke would be
+  // noise, and "taken" flashing under a half-typed name is wrong more often
+  // than right). A newer keystroke makes an older answer irrelevant.
+  const USERNAME_SHAPE = /^[a-zA-Z0-9_.]{3,20}$/;
+  let usernameTimer = null;
+  let usernameSeq = 0;
+  let usernameState = 'unknown';     // unknown | ok | taken | invalid
+
+  function usernameStatus(kind, text, ideas) {
+    const el = $('registerUsernameStatus');
+    el.className = 'field-status' + (kind ? ' is-' + kind : ' hidden');
+    el.textContent = text || '';
+    for (const idea of ideas || []) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'field-chip';
+      chip.textContent = idea;
+      chip.addEventListener('click', () => {
+        $('registerUsername').value = idea;
+        usernameState = 'ok';            // the server just said these are free
+        usernameStatus('ok', t('auth.usernameFree'));
+        $('registerEmail').value ? $('registerPassword').focus() : $('registerEmail').focus();
+      });
+      el.appendChild(chip);
+    }
+  }
+
+  async function askUsername(name, forIdeas) {
+    const mine = ++usernameSeq;
+    try {
+      const res = await fetch(BACKEND + '/auth/username-check?username=' + encodeURIComponent(name));
+      if (!res.ok || mine !== usernameSeq) return null;
+      return await res.json();
+    } catch {
+      return null;      // no answer is not "taken": the form still submits and the server decides
+    }
+  }
+
+  function checkUsernameSoon() {
+    clearTimeout(usernameTimer);
+    usernameSeq++;
+    usernameState = 'unknown';
+    const name = $('registerUsername').value.trim();
+    if (!name) { usernameStatus(null); return; }
+    if (!USERNAME_SHAPE.test(name)) {
+      // the rule is only said once they have typed enough to have broken it
+      if (name.length >= 3 || /[^a-zA-Z0-9_.]/.test(name)) { usernameState = 'invalid'; usernameStatus('bad', t('auth.usernameRule')); }
+      else usernameStatus(null);
+      return;
+    }
+    usernameStatus('wait', t('auth.usernameChecking'));
+    usernameTimer = setTimeout(async () => {
+      const data = await askUsername(name);
+      if (!data || $('registerUsername').value.trim() !== name) { if (!data) usernameStatus(null); return; }
+      if (data.ok) { usernameState = 'ok'; usernameStatus('ok', t('auth.usernameFree')); }
+      else { usernameState = 'taken'; usernameStatus('bad', t('auth.usernameTaken'), data.suggestions); }
+    }, 450);
+  }
+
+  // No username yet and an email just typed: offer one made from the address.
+  async function suggestUsernameFromEmail() {
+    if ($('registerUsername').value.trim()) return;
+    const local = ($('registerEmail').value.split('@')[0] || '').replace(/[^a-zA-Z0-9_.]/g, '');
+    if (local.length < 3) return;
+    const data = await askUsername(local);
+    if (!data || $('registerUsername').value.trim()) return;
+    const ideas = data.ok ? [local.toLowerCase()] : data.suggestions;
+    if (ideas && ideas.length) usernameStatus('hint', t('auth.usernameSuggest'), ideas);
+  }
+
   function pwScore(pw) {
     if (!pw) return 0;
     let score = 0;
@@ -227,7 +321,7 @@ const Auth = (() => {
     const score = pwScore(pw);
     const bar = $(barId);
     const label = $(labelId);
-    const pct = pw.length < PW_MIN ? Math.max(8, (pw.length / PW_MIN) * 33) : score <= 2 ? 66 : 100;
+    const pct = pw.length < PW_MIN ? Math.max(8, (pw.length / PW_MIN) * 33) : isCommonPassword(pw) ? 33 : score <= 2 ? 66 : 100;
     bar.style.width = pct + '%';
     // Силата се показваше с цвят — а в черно-бяла тема --danger, --warn, --blue
     // и --accent са едно и също бяло. Тоест "слаба" се рисуваше най-ярко от
@@ -238,6 +332,7 @@ const Auth = (() => {
     // yellow — accepted, but easy to guess; green — good.
     let level, text;
     if (pw.length < PW_MIN) { level = 'is-bad'; text = t('auth.pwTooShort', { n: PW_MIN }); }
+    else if (isCommonPassword(pw)) { level = 'is-bad'; text = t('auth.pwCommon'); }
     else if (score <= 2) { level = 'is-ok'; text = t('auth.pwFair'); }
     else { level = 'is-strong'; text = t('auth.pwStrong'); }
     bar.className = 'pw-strength-fill ' + level;
@@ -258,8 +353,21 @@ const Auth = (() => {
       setError(t('auth.errFillAll'));
       return;
     }
+    if (!USERNAME_SHAPE.test(username)) {
+      setError(t('auth.usernameRule'));
+      return;
+    }
+    if (usernameState === 'taken') {
+      setError(t('auth.usernameTaken'));
+      $('registerUsername').focus();
+      return;
+    }
     if (password.length < PW_MIN) {
       setError(t('auth.pwTooShort', { n: PW_MIN }));
+      return;
+    }
+    if (isCommonPassword(password)) {
+      setError(t('auth.pwCommon'));
       return;
     }
     if (!$('registerTerms').checked) {
@@ -414,6 +522,8 @@ const Auth = (() => {
     $('loginRemember').checked = false;
     $('registerPwStrength').classList.add('hidden');
     $('resetPwStrength').classList.add('hidden');
+    usernameState = 'unknown';
+    usernameStatus(null);
     pendingVerifyEmail = null;
     pendingPhoneEmail = null;
     pendingResetEmail = null;
@@ -435,7 +545,7 @@ const Auth = (() => {
     $('entryGateClose').addEventListener('click', skipEntryGate);
     $('checklistLoginBtn').addEventListener('click', showEntryGate);
 
-    $('showRegister').addEventListener('click', e => { e.preventDefault(); showForm('register'); });
+    $('showRegister').addEventListener('click', e => { e.preventDefault(); showForm('register'); loadCommonPasswords(); });
     $('showLogin').addEventListener('click', e => { e.preventDefault(); showForm('login'); });
     $('showForgot').addEventListener('click', e => { e.preventDefault(); showForm('forgot'); });
     $('showLoginFromForgot').addEventListener('click', e => { e.preventDefault(); showForm('login'); });
@@ -451,7 +561,7 @@ const Auth = (() => {
     $('resetBtn').addEventListener('click', () => _withBusy($('resetBtn'), handleReset));
     $('logoutBtn').addEventListener('click', handleLogout);
 
-    $('welcomeStart').addEventListener('click', () => { showForm('register'); $('registerUsername').focus(); });
+    $('welcomeStart').addEventListener('click', () => { showForm('register'); loadCommonPasswords(); $('registerUsername').focus(); });
     $('welcomeLogin').addEventListener('click', e => { e.preventDefault(); showForm('login'); $('loginEmail').focus(); });
     $('welcomeGuest').addEventListener('click', skipEntryGate);
     showForm(isKnown() ? 'login' : 'welcome');
@@ -463,6 +573,10 @@ const Auth = (() => {
     _submitOnEnter('forgotForm', 'forgotBtn');
     _submitOnEnter('resetForm', 'resetBtn');
 
+    $('registerUsername').addEventListener('input', checkUsernameSoon);
+    $('registerEmail').addEventListener('blur', suggestUsernameFromEmail);
+    $('registerPassword').addEventListener('focus', loadCommonPasswords);
+    $('resetPassword').addEventListener('focus', loadCommonPasswords);
     $('registerPassword').addEventListener('input', () =>
       updatePwStrength('registerPassword', 'registerPwStrength', 'registerPwBar', 'registerPwLabel'));
     $('resetPassword').addEventListener('input', () =>
