@@ -145,5 +145,17 @@ const Net = (() => {
     }
   }
 
-  return { fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
+  // What the server accepts as conversation history: at most 12 turns, each at
+  // most 4000 characters (server.py, AskRequest). A longer thread or one long
+  // answer used to make every later question fail with a validation error.
+  const HISTORY_TURNS = 12;
+  const HISTORY_CHARS = 4000;
+  function trimHistory(turns) {
+    return (turns || []).slice(-HISTORY_TURNS)
+      .map(h => ({ role: h.role, text: String(h.text || '').slice(0, HISTORY_CHARS) }))
+      .filter(h => h.text);
+  }
+
+  return {
+    trimHistory, fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
 })();

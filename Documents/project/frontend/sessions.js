@@ -38,8 +38,15 @@ const Sessions = (() => {
     return d.toLocaleDateString(lang, { day: 'numeric', month: 'short' }) + ', ' + clock;
   }
 
-  function ended(iso, seconds) {
-    const d = new Date(new Date(iso).getTime() + seconds * 1000);
+  // created_at is when the session was saved — its end. The start is that
+  // minus how long it lasted.
+  function startedIso(session) {
+    const d = new Date(new Date(session.created_at).getTime() - (session.duration_seconds || 0) * 1000);
+    return isNaN(d) ? session.created_at : d.toISOString();
+  }
+
+  function ended(iso) {
+    const d = new Date(iso);
     if (isNaN(d)) return '';
     const lang = window.I18n && I18n.get() === 'bg' ? 'bg-BG' : 'en-GB';
     return d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' });
@@ -56,7 +63,7 @@ const Sessions = (() => {
 
     const when_ = document.createElement('span');
     when_.className = 'session-when';
-    when_.textContent = when(session.created_at);
+    when_.textContent = when(startedIso(session));
 
     const length = document.createElement('span');
     length.className = 'session-length';
@@ -73,8 +80,8 @@ const Sessions = (() => {
     body.className = 'session-detail hidden';
 
     const lines = [
-      [t('sessions.started'), when(session.created_at)],
-      [t('sessions.ended'), ended(session.created_at, session.duration_seconds)],
+      [t('sessions.started'), when(startedIso(session))],
+      [t('sessions.ended'), ended(session.created_at)],
       [t('sessions.lasted'), minutes(session.duration_seconds)],
     ];
     for (const [label, value] of lines) {
