@@ -84,7 +84,7 @@ class User(Base):
     # дотогава токени спират да важат. Причината е обикновена: детето, което си
     # е останало отворено на училищния компютър и после си смени паролата вкъщи,
     # има право да очаква, че оттам нататък никой не му чете домашните.
-    token_version = Column(Integer, nullable=False, default=0, server_default=false())
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
 
     @property
     def has_password(self) -> bool:
@@ -339,7 +339,7 @@ class PairedDevice(Base):
     # няколко. Телефон, който удари таван при единия работник, иначе просто
     # продължава при другия.
     photos_hour_start = Column(DateTime(timezone=True), nullable=True)
-    photos_this_hour = Column(Integer, nullable=False, default=0, server_default=false())
+    photos_this_hour = Column(Integer, nullable=False, default=0, server_default="0")
 
 
 class PhonePhoto(Base):

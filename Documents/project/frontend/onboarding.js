@@ -403,17 +403,26 @@ const Onboarding = (() => {
   // ---- moving -------------------------------------------------------------
 
   let retried = false;
+  // One advance at a time: the last question saves over the network, and a
+  // second press while that was in flight moved the index past the end.
+  let advancing = false;
   async function advance() {
-    if (steps[index] === 'done') { finish(); return; }
-    if (steps[index + 1] === 'done' && !saved) {
-      const ok = await save();
-      // One failed save shows the message and waits; pressing again moves on —
-      // the answers can be given later in Settings, a dead end cannot be undone.
-      if (!ok && !retried) { retried = true; return; }
-      saved = true;
+    if (advancing) return;
+    advancing = true;
+    try {
+      if (steps[index] === 'done') { finish(); return; }
+      if (steps[index + 1] === 'done' && !saved) {
+        const ok = await save();
+        // One failed save shows the message and waits; pressing again moves on —
+        // the answers can be given later in Settings, a dead end cannot be undone.
+        if (!ok && !retried) { retried = true; return; }
+        saved = true;
+      }
+      if (index < steps.length - 1) index++;
+      render();
+    } finally {
+      advancing = false;
     }
-    index++;
-    render();
   }
 
   function next() { collect(); advance(); }

@@ -253,7 +253,7 @@ const Tutor = (() => {
   // withPages: send the photographs (no brief to name: the read failed, or the
   // server is older than /read). mode: "full" for one reply, when the student
   // asked for the whole solution after trying.
-  function post(question, withPages, signal, mode) {
+  function post(question, withPages, signal, mode, skipRead) {
     const token = Auth.getToken();
     const reading = withPages && !history.length;
     return Net.fetch(BACKEND + '/ask', {
@@ -267,6 +267,7 @@ const Tutor = (() => {
       body: JSON.stringify({
         images: withPages ? scannedImages : [],
         brief_id: withPages ? null : briefId,
+        skip_read: !!skipRead,
         question, lang: I18n.get(), history: Net.trimHistory(history),
         mode: mode || (window.Prefs ? Prefs.get('tutor') : 'hints'),
         surface: 'tutor',
@@ -345,6 +346,7 @@ const Tutor = (() => {
         // request that reads and answers together, which is what older
         // servers offer and what a failed read needs anyway.
         let read = null;
+        let readFailed = false;
         try { read = await postRead(question, controller.signal); } catch (err) {
           if (controller.signal.aborted) throw err;
         }
@@ -354,6 +356,9 @@ const Tutor = (() => {
         } else if (read && read.ok) {
           const page = await read.json().catch(() => ({}));
           if (asked !== epoch) return false;
+          // An empty brief: the reader was tried and failed. The tutor reads
+          // the photographs; the reader is not asked a second time.
+          readFailed = !page.brief_id;
           briefId = page.brief_id || null;
           if (page.read) showRead(page.read);
           Net.noteSession(read);
@@ -366,8 +371,10 @@ const Tutor = (() => {
           const tried = box ? box.value.trim() : '';
           if (box) box.closest('.wait-tried').remove();
           attempted = !!tried;
-          if (tried) question = question + '\n\n' + t('scanner.triedPrefix') + ' ' + tried;
-          res = await post(question, !briefId, controller.signal, opts.mode);
+          // Together they must fit the server's 2000 characters for a question.
+          const extra = '\n\n' + t('scanner.triedPrefix') + ' ' + tried;
+          if (tried) question = (question + extra).slice(0, 2000);
+          res = await post(question, !briefId, controller.signal, opts.mode, readFailed);
         }
       } else {
         res = await post(question, !briefId, controller.signal, opts.mode);

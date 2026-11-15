@@ -387,9 +387,15 @@ def test_the_first_question_after_reading_uses_the_page_and_reads_nothing(monkey
 
 
 def test_a_page_that_cannot_be_read_says_so_and_the_old_path_still_works(monkeypatch):
-    _fake(monkeypatch, reader_error=RuntimeError("overloaded"))
-    assert _read().status_code == 503
+    calls = _fake(monkeypatch, reader_error=RuntimeError("overloaded"))
+    res = _read()
+    # not an error status: 502-504 would make the app send the read again
+    assert res.status_code == 200 and res.json() == {"brief_id": None, "read": None}
     assert _ask(images=[JPEG]).status_code == 200
+    # told the read already failed, /ask does not try the reader again
+    calls.clear()
+    assert _ask(images=[JPEG], skip_read=True).status_code == 200
+    assert _readers(calls) == [] and _has_image(_tutors(calls)[0])
 
 
 def test_reading_needs_a_photograph():
@@ -402,4 +408,15 @@ def test_reading_is_limited_like_asking(monkeypatch):
     payload = {"images": [JPEG], "question": "q", "lang": "en"}
     codes = [client.post("/read", json=payload).status_code for _ in range(13)]
     assert codes[:12] == [200] * 12 and codes[12] == 429
+    rate_limit._hits.clear()
+
+
+def test_page_reads_share_one_limit_across_both_doors(monkeypatch):
+    _fake(monkeypatch)
+    rate_limit._hits.clear()
+    read = {"images": [JPEG], "question": "q", "lang": "en"}
+    ask = {"images": [JPEG], "question": "q", "lang": "en", "surface": "tutor"}
+    assert [client.post("/read", json=read).status_code for _ in range(12)] == [200] * 12
+    # the thirteenth page read of the hour is refused through /ask as well
+    assert client.post("/ask", json=ask).status_code == 429
     rate_limit._hits.clear()

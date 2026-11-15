@@ -296,6 +296,9 @@ class Ask(BaseModel):
     # A page Opus has already read. Follow-ups send this instead of uploading
     # every photograph again; the server keeps what was read (see relay.py).
     brief_id: Optional[str] = Field(default=None, max_length=64)
+    # /read already tried this page and could not read it: do not try again,
+    # let the tutor read the photographs.
+    skip_read: bool = False
 
     @field_validator("images")
     @classmethod
@@ -934,9 +937,11 @@ def read_pages(
     explanation built on it — and each stage on screen is a real one. The
     follow-up /ask names the page by brief_id, exactly as replies always have.
 
-    Counts against the same hourly limit and the same daily budget as /ask.
-    503 when the page could not be read: the app then sends the photographs
-    to /ask itself, which is the path that existed before.
+    Page reads have one hourly limit wherever they happen — here, or inside
+    /ask for a client that still sends photographs with its first question —
+    and the same daily budget as /ask. When the page could not be read the
+    answer is an empty brief: the app then sends the photographs to /ask with
+    skip_read, so the tutor reads them and the reader is not tried again.
     """
     lang = body.lang if body.lang in SYSTEM else "en"
     if user is None and request.headers.get("authorization", "").startswith("Bearer "):
@@ -946,7 +951,10 @@ def read_pages(
     usage.guard(db, lang, request, "read", user)
     brief = _read_pages(db, body, user, lang)
     if brief is None:
-        raise HTTPException(503, TUTOR_ERROR_MESSAGE[lang])
+        # 200 with nothing, not an error status: the app treats 502-504 as a
+        # sleeping server and sends the same request again, which here meant a
+        # second and third paid attempt at a page that could not be read.
+        return {"brief_id": None, "read": None}
     return {"brief_id": brief.id, "read": brief.read_text}
 
 
@@ -983,7 +991,11 @@ def ask(
     # reading on each of those would cost them 35 seconds and an Opus call per
     # message. Their follow-ups keep working exactly as before — the tutor reads the
     # photos — until they update.
-    if body.images and not body.history:
+    if body.images and not body.history and not body.skip_read:
+        # The same hourly limit as /read: without it the two doors together
+        # allowed twice the page reads the limit names.
+        rate_limit.enforce(request, "read", max_calls=30 if user else 12, window_seconds=3600,
+                           message=RATE_LIMIT_MESSAGE[lang], user=user)
         brief = _read_pages(db, body, user, lang)
         fresh = brief is not None
     elif body.brief_id:
