@@ -76,6 +76,7 @@ const HomeworkReminders = (() => {
     if (window.Toast && document.visibilityState === 'visible') Toast.show(body);
   }
 
+  let checking = false;
   async function check() {
     if (!enabled() || !window.Auth || !Auth.isLoggedIn() || !window.Checklist) return;
     if (document.body.classList.contains('focus-live')) return;
@@ -84,8 +85,12 @@ const HomeworkReminders = (() => {
     const now = new Date();
     const slot = dueSlot(String(user.id), now.getHours() * 60 + now.getMinutes());
     if (!slot) return;
+    // Two checks can pass the slot test at once (the timer and the window
+    // coming back after sleep); only one may go on to notify.
+    if (checking) return;
+    checking = true;
     let pending;
-    try { pending = await Checklist.getPendingTasks(); } catch { return; }
+    try { pending = await Checklist.getPendingTasks(); } catch { return; } finally { checking = false; }
     const soon = pending.filter(task => {
       const d = Checklist.daysUntil(task.deadline);
       return d !== null && d <= 1;

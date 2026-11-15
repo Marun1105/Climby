@@ -55,8 +55,9 @@ const Tutor = (() => {
   // Markdown + LaTeX into `el`, after `prefix`. The AI's text is untrusted:
   // no DOMPurify, no HTML.
   function renderMarkdown(text, el, prefix = '') {
-    if (window.marked && window.DOMPurify) {
-      el.innerHTML = prefix + DOMPurify.sanitize(marked.parse(text));
+    const html = window.Md ? Md.toHtml(text) : null;
+    if (html !== null) {
+      el.innerHTML = prefix + html;
     } else {
       el.innerHTML = prefix;
       const plain = document.createElement('div');
@@ -257,6 +258,7 @@ const Tutor = (() => {
       AIActivity.sign(target, took);
       history.push({ role: 'user', text: question }, { role: 'assistant', text: data.answer });
       $('followUp').classList.remove('hidden');
+      Net.noteSession(res);
       return true;
     } catch (err) {
       if (asked !== epoch) return false;

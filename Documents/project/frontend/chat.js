@@ -250,8 +250,9 @@ const Chat = (() => {
   function t(key, vars) { return window.t ? window.t(key, vars) : key; }
 
   function render(text, el) {
-    if (window.marked && window.DOMPurify) {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    const html = window.Md ? Md.toHtml(text) : null;
+    if (html !== null) {
+      el.innerHTML = html;
     } else {
       el.textContent = text;
     }
@@ -347,6 +348,8 @@ const Chat = (() => {
       window.dispatchEvent(new CustomEvent('climby:activity'));
       history.push({ role: 'user', text }, { role: 'assistant', text: data.answer });
       persist();
+      // last: signing out starts a new thread, and this answer should be seen first
+      Net.noteSession(res);
     } catch (err) {
       if (asked !== epoch) return;
       theirs.classList.remove('chat-thinking');

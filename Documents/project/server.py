@@ -171,7 +171,7 @@ app.add_middleware(
     allow_headers=["*"],
     # The export names its file in this header; without exposing it the app
     # cannot read it across origins and falls back to a generic name.
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Climby-Session"],
 )
 
 # "Всички предмети, с малки изключения" — учителят не се ограничава само до математика.
@@ -1461,10 +1461,16 @@ def memory_preview(body: MemoryPreview, request: Request,
 def ask(
     body: Ask,
     request: Request,
+    response: Response,
     user: Optional[User] = Depends(auth.get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     lang = body.lang if body.lang in SYSTEM else "en"
+    # A token was sent and it is no longer good: the question is still answered
+    # (as a guest), but the app is told, so it can sign the student out instead
+    # of looking signed in while nothing is being saved.
+    if user is None and request.headers.get("authorization", "").startswith("Bearer "):
+        response.headers["X-Climby-Session"] = "expired"
     # /ask е достъпен и за гости (без вход), затова лимитът е по IP, а не по акаунт —
     # пази от неограничени разходи за Anthropic API от един клиент/бот.
     # Разговорът значи повече реплики. С акаунт: 30 на час — един истински урок.

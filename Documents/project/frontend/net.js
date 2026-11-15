@@ -156,6 +156,19 @@ const Net = (() => {
       .filter(h => h.text);
   }
 
+  // /ask answers guests too, so a token that has expired does not fail — the
+  // student just silently became a guest. The server marks such an answer;
+  // sign out properly and say so.
+  function noteSession(res) {
+    try {
+      if (res && res.headers.get('X-Climby-Session') === 'expired' && window.Auth && Auth.isLoggedIn()) {
+        Auth.logout(false);
+        if (window.Toast && window.t) Toast.show(window.t('checklist.errSession'));
+      }
+    } catch { /* a header we cannot read changes nothing */ }
+  }
+
   return {
-    trimHistory, fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
+    trimHistory,
+    noteSession, fetch: request, guardSubmit, guardClick, AI_TIMEOUT_MS, AI_READ_TIMEOUT_MS };
 })();
