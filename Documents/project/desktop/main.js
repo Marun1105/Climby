@@ -235,7 +235,9 @@ function buildMenu() {
         { role: 'zoomOut', label: 'Zoom Out' },
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Full Screen' },
-        { role: 'toggleDevTools', label: 'Developer Tools' },
+        // Not in the installed app: the sign-in is kept in the page's storage,
+        // and a child can be talked into pasting something into a console.
+        ...(app.isPackaged ? [] : [{ role: 'toggleDevTools', label: 'Developer Tools' }]),
       ],
     },
     {

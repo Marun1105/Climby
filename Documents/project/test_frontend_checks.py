@@ -838,7 +838,7 @@ _MAP_MUST_NAME = [
 
 
 def _app_map_halves():
-    path = os.path.join(os.path.dirname(__file__), "server.py")
+    path = os.path.join(os.path.dirname(__file__), "prompts.py")
     with open(path, encoding="utf-8") as f:
         server_src = f.read()
     app_map = server_src[server_src.index("APP_MAP = {"):server_src.index("SURFACE = {")]
@@ -873,7 +873,7 @@ def test_the_tutor_knows_every_screen_and_setting_the_app_has():
             assert m, f"{key} is missing from the {lang} dictionary"
             label = m.group(1)
             assert label in halves[lang], (
-                f"the {lang} half of APP_MAP in server.py never names {label!r} ({key}). "
+                f"the {lang} half of APP_MAP in prompts.py never names {label!r} ({key}). "
                 f"APP_MAP is generated from these strings — if the app changed, the map has "
                 f"to be regenerated, or the tutor will describe an app that no longer exists."
             )
@@ -1387,7 +1387,7 @@ def test_the_session_strings_exist_in_both_languages():
 def test_the_tutor_offers_more_than_exercises():
     """The kinds were named in one sentence, but every example under them was an
     exercise with a page number — and that is what the model anchored on."""
-    path = os.path.join(os.path.dirname(__file__), "server.py")
+    path = os.path.join(os.path.dirname(__file__), "prompts.py")
     with open(path, encoding="utf-8") as f:
         server_src = f.read()
     offer = server_src[server_src.index("TASK_OFFER = {"):server_src.index("SOLVED_MARK = {")]

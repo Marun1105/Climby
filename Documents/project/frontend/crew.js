@@ -474,7 +474,10 @@ const Crew = (() => {
   function openPerson(p) {
     const isMe = p.id === 'me';
     const groups = (p.groups || []).map(id => data.groups.find(g => g.id === id)).filter(Boolean);
-    const mutual = data.friends.filter(f => f.id !== p.id).slice(0, Math.min(p.mutual || 0, 4));
+    // The server sends how many friends you share, not who they are. The faces
+    // used to be simply your first few friends — fine in the preview, untrue
+    // with real people — so signed in, only the number is shown.
+    const mutual = mode === 'demo' ? data.friends.filter(f => f.id !== p.id).slice(0, Math.min(p.mutual || 0, 4)) : [];
     const ring = GRADS[(p.hue || 0) % GRADS.length][0];
     const card = openCard(`
       <div class="crew-card-head">
@@ -490,7 +493,7 @@ const Crew = (() => {
         <div class="crew-stat"><strong>${p.holdsTotal}</strong><span>${esc(t('crew.statTotal'))}</span></div>
         <div class="crew-stat"><strong>${p.streak}🔥</strong><span>${esc(t('crew.statStreak'))}</span></div>
       </div>
-      ${!isMe && mutual.length ? `<div class="crew-mutual"><span class="crew-mutual-faces">${mutual.map(m => `<span class="crew-mini" style='--avatar-bg:${grad(m.hue)}'>${esc(initial(m))}</span>`).join('')}</span>${esc(t('crew.mutual', { n: p.mutual }))}</div>` : ''}
+      ${!isMe && p.mutual ? `<div class="crew-mutual"><span class="crew-mutual-faces">${mutual.map(m => `<span class="crew-mini" style='--avatar-bg:${grad(m.hue)}'>${esc(initial(m))}</span>`).join('')}</span>${esc(t('crew.mutual', { n: p.mutual }))}</div>` : ''}
       ${groups.length ? `<div class="crew-chips">${groups.map(g => `<span class="crew-chip">${esc(g.name)}</span>`).join('')}</div>` : ''}
       <div class="crew-actions">
         ${isMe

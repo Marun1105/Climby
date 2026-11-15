@@ -1090,7 +1090,7 @@
     <button type="button" class="quick" data-quick="scanner.quickHint" data-i18n="scanner.quickHintBtn">Само подсказка</button>
     <button type="button" class="quick" data-quick="scanner.quickWhy" data-i18n="scanner.quickWhyBtn">Защо е така?</button>
   </div>
-  <textarea id="question" data-i18n-placeholder="scanner.questionPlaceholder" placeholder="Напр. „Как се решава задача 5?“ или „Провери решението ми“"></textarea>
+  <textarea id="question" data-i18n-aria-label="scanner.questionPlaceholder" aria-label="Your question" data-i18n-placeholder="scanner.questionPlaceholder" placeholder="Напр. „Как се решава задача 5?“ или „Провери решението ми“"></textarea>
   <div class="composer-actions">
     <span class="composer-hint" data-i18n="scanner.composerHint">Enter изпраща · Shift+Enter нов ред</span>
     <button id="askBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.askBtn">Питай</span></button>
@@ -1111,7 +1111,7 @@
      in order. The reply box appears once there is something to reply to. -->
 <div id="thread" class="thread"></div>
 <div id="followUp" class="follow-up hidden">
-  <textarea id="followQuestion" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
+  <textarea id="followQuestion" data-i18n-aria-label="scanner.followUpPlaceholder" aria-label="Reply, or ask more" rows="2" data-i18n-placeholder="scanner.followUpPlaceholder" placeholder="Reply, or ask more…"></textarea>
   <button id="followBtn" class="btn-ai" type="button"><span class="spark climbai-mark" aria-hidden="true"></span><span data-i18n="scanner.followUpBtn">Send</span></button>
 </div>
 
@@ -1478,7 +1478,7 @@
     <p id="chatSees" class="chat-sees hidden" data-i18n="chat.sees">ClimbAI only uses the app details you selected in Settings.</p>
   </div>
   <div class="chat-input-row">
-    <textarea id="chatInput" rows="1" data-i18n-placeholder="chat.placeholder" placeholder="Напиши въпрос…"></textarea>
+    <textarea id="chatInput" data-i18n-aria-label="chat.placeholder" aria-label="Write a question" rows="1" data-i18n-placeholder="chat.placeholder" placeholder="Напиши въпрос…"></textarea>
     <button id="chatSend" class="btn-ai chat-send" type="button" data-i18n-aria="chat.send" aria-label="Изпрати">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
     </button>

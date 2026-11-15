@@ -7,9 +7,31 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt directly. passlib, which used to wrap it, has had no release since
+# 2020 and broke on every bcrypt newer than 4.0 — it was holding the one
+# library that guards the passwords on an old version. The hashes it wrote are
+# ordinary bcrypt ("$2b$12$…"), so every existing password keeps working.
+_BCRYPT_ROUNDS = 12   # what passlib used
+
+
+def _secret(text: str) -> bytes:
+    # bcrypt reads the first 72 bytes and no more. Older versions cut the rest
+    # off silently, newer ones refuse; cutting here keeps both the old hashes
+    # and long passwords working.
+    return text.encode("utf-8")[:72]
+
+
+def _hash(text: str) -> str:
+    return bcrypt.hashpw(_secret(text), bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode("ascii")
+
+
+def _verify(text: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(_secret(text), hashed.encode("ascii"))
+    except (ValueError, TypeError, AttributeError):
+        return False   # not a bcrypt hash at all
 
 # Без зададен JWT_SECRET НЕ ползваме фиксирана стойност по подразбиране: тя стои в
 # публичното repo, а всеки, който я знае, може да си направи валиден токен за чужд
@@ -58,11 +80,11 @@ CODE_TTL_MINUTES = 15
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _hash(password)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    return _verify(password, password_hash)
 
 
 # Хеш на случайна парола, която никой не знае и никога няма да бъде позната.
@@ -70,7 +92,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 # bcrypt е бавен нарочно и точно тази бавност издаваше кои адреси са
 # регистрирани — с акаунт отговорът идваше за ~250 мс, без акаунт за ~5 мс.
 # Сега и двата пътя минават през едно и също сравнение.
-DUMMY_PASSWORD_HASH = pwd_context.hash(secrets.token_urlsafe(32))
+DUMMY_PASSWORD_HASH = _hash(secrets.token_urlsafe(32))
 
 
 def generate_code() -> str:
@@ -81,11 +103,11 @@ def generate_code() -> str:
 
 
 def hash_code(code: str) -> str:
-    return pwd_context.hash(code)
+    return _hash(code)
 
 
 def verify_code(code: str, code_hash: str) -> bool:
-    return pwd_context.verify(code, code_hash)
+    return _verify(code, code_hash)
 
 
 def code_expiry() -> datetime:

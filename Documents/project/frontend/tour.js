@@ -213,6 +213,9 @@ const Tour = (() => {
     document.addEventListener('keydown', e => {
       if (!root || root.classList.contains('hidden')) return;
       if (e.key === 'Escape') finish();
+      // Enter on a focused button already clicks it; handling it here as well
+      // skipped a stop (or finished and restarted the tour).
+      else if (e.key === 'Enter' && e.target && e.target.closest && e.target.closest('button')) return;
       else if (e.key === 'ArrowRight' || e.key === 'Enter') go(index + 1, 1);
       else if (e.key === 'ArrowLeft') go(index - 1, -1);
     });
@@ -224,8 +227,9 @@ const Tour = (() => {
     window.addEventListener('climby:entry-gate-closed', () => setTimeout(maybeStart, 400));
     const replay = $('tourReplayBtn');
     if (replay) replay.addEventListener('click', () => {
-      const overlay = $('settingsOverlay');
-      if (overlay) overlay.classList.add('hidden');
+      // through Settings' own close, so the page scroll lock is released too
+      if (window.AccountUI) AccountUI.close();
+      else { const overlay = $('settingsOverlay'); if (overlay) overlay.classList.add('hidden'); }
       start();
     });
   }

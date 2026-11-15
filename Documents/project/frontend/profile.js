@@ -122,7 +122,7 @@ const Profile = (() => {
     $('quizLater').addEventListener('click', later);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('profileQuiz').classList.contains('hidden')) later(); });
     const btn = $('settingsProfileBtn');
-    if (btn) btn.addEventListener('click', () => { $('settingsOverlay').classList.add('hidden'); open(); });
+    if (btn) btn.addEventListener('click', () => { if (window.AccountUI) AccountUI.close(); else $('settingsOverlay').classList.add('hidden'); open(); });
     window.addEventListener('climby:auth-changed', e => { if (e.detail && e.detail.loggedIn) setTimeout(maybeAsk, 400); else summary(); });
     window.addEventListener('climby:user-updated', summary);
     maybeAsk();
