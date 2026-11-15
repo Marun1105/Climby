@@ -1,5 +1,17 @@
 # Shorten the wait, guard the camera
 
+> **Status on 15 Nov 2026, the day this was written.** Already done in the app:
+> item 34 (the tour is three stops; it still starts by itself), 36 (username
+> check with suggestions), 38 and 39 (country and town are type-to-search,
+> matching both languages, from generated data; nothing is pre-filled), and the
+> common-password check from the earlier note. Checked against the code for
+> items 1–2: the screens say "at your desk", and the percentage is shown only
+> to the student — it is not in the parent or teacher views. The database
+> column is still named `focus_pct`, and the figure is included in what ClimbAI
+> may be told when memory is on; both are worth renaming or dropping.
+> Everything else below is open.
+
+
 Climby's next gains are not in the sign-up form any more. They sit in four places: the camera timer, the 30–40-second wait for the first answer, the "full solution on request" button, and a handful of defaults (dark theme, seven-stop tour, streak with no off switch) that cut against the best available evidence. The single highest risk is legal, not visual: inferring a student's attention or emotion from a camera in an education setting has been a prohibited AI practice in the EU since 2 February 2025, so the stored "presence percentage" must stay a plain count of time at the desk and must never be labelled, computed or shared as focus. The single largest usability defect is the wait, which is three to four times past the 10-second limit for holding attention; it needs a real progress indicator, a stated time estimate, and the page transcription shown as soon as it exists. The tutoring design is right in principle, but twenty years of tutoring research says an answer button alone gets clicked through, while a 2026 trial shows a tutor that only refuses goes unused, so the answer should unlock after a real attempt. Most of what Climby already does for motivation (one forgiven day, points that buy nothing, no chat, numbers-only adult views) matches the evidence and should be kept. The honest limit of this report: almost none of the evidence was gathered on Bulgarian students or on 12–18-year-olds using AI tutors, several legal texts were read only through law-firm or NGO summaries, and each recommendation below says so where it applies.
 
 **How to read the tables.** Priority: **P1** do first, **P2** next, **P3** when convenient. "Applies?" judges each item against the product facts supplied. Evidence labels: *Law* (binding), *Guidance* (official but non-binding), *Experiment* (controlled study), *Usability* (usability testing or expert-body guidance), *Vendor* (company data), *Opinion* (practitioner view or the researchers' own inference). **2nd-hand** means the primary text was not read and the claim comes from a summary, abstract or search snippet; **recalled** means it comes from the researcher's memory of a well-known document that was not re-opened. Anything so marked should be checked before it is quoted elsewhere.
