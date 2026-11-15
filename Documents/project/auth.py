@@ -295,10 +295,15 @@ def get_current_user_optional(
 TERMS_NEEDED = "Please agree to the Terms and the Privacy policy to continue."
 
 
+REGISTER_PER_HOUR = 40
+
+
 @router.post("/register")
 def register(body: RegisterRequest, request: Request, background: BackgroundTasks,
              db: Session = Depends(get_db)):
-    rate_limit.enforce(request, "register", max_calls=5, window_seconds=3600,
+    # Per address, and a school is one address: five an hour was one desk's
+    # worth of a classroom signing up together.
+    rate_limit.enforce(request, "register", max_calls=REGISTER_PER_HOUR, window_seconds=3600,
                         message="Too many sign-up attempts. Please wait a moment and try again.")
     # Before anything looks at the address, so the answer is the same for a
     # free one and a taken one.

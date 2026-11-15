@@ -364,7 +364,9 @@ def test_split_rejects_empty_text():
     assert client.post("/plan/split", json={"text": "   ", "lang": "bg"}).status_code == 400
 
 
-def test_register_is_rate_limited():
+def test_register_is_rate_limited(monkeypatch):
+    import auth
+    monkeypatch.setattr(auth, "REGISTER_PER_HOUR", 5)
     for i in range(5):
         res = client.post("/auth/register", json={"accept_terms": True, 
             "display_name": f"RL{i}", "email": f"rl{i}@example.com",

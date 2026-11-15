@@ -13,6 +13,9 @@ const Papers = (() => {
   const BACKEND = window.CLIMBY_BACKEND;
   const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
   const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  // Hashes of exactly these two files; the browser refuses anything else.
+  const PDFJS_SRI = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+  const PDFJS_WORKER_SRI = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
 
   let catalogue = null;
   let exam = null, subject = null;
@@ -31,14 +34,19 @@ const Papers = (() => {
     pdfReady = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = PDFJS;
+      s.integrity = PDFJS_SRI;
+      s.crossOrigin = 'anonymous';
+      // A failed load must not be remembered: past papers stayed broken until
+      // the app was restarted.
+      const fail = e => { pdfReady = null; s.remove(); reject(e); };
       s.onload = async () => {
         try {
-          const src = await fetch(PDFJS_WORKER).then(r => r.text());
+          const src = await fetch(PDFJS_WORKER, { integrity: PDFJS_WORKER_SRI }).then(r => r.text());
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
           resolve(window.pdfjsLib);
-        } catch (e) { reject(e); }
+        } catch (e) { fail(e); }
       };
-      s.onerror = reject;
+      s.onerror = fail;
       document.head.appendChild(s);
     });
     return pdfReady;

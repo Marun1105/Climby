@@ -51,7 +51,7 @@
 <link rel="stylesheet" href="classes.css">
 <link rel="stylesheet" href="crew.css">
 <link rel="stylesheet" href="themes.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 </head>
 <body>
 
@@ -1415,8 +1415,10 @@
 <script src="vendor/purify.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <!-- KaTeX оформя математическите формули между $...$ и $$...$$ -->
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
+<!-- KaTeX 0.16.9 ships with the app (vendor/katex): it renders every answer, and a
+     school network that blocks the CDN used to stall the whole page waiting for it. -->
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/auto-render.min.js"></script>
 <!-- face-api.js разпознава дали има лице в кадъра — изцяло в браузъра, снимката никога не напуска устройството -->
 <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js" integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA" crossorigin="anonymous"></script>
 

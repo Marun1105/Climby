@@ -4,7 +4,7 @@
 const Focus = (() => {
   const $ = id => document.getElementById(id);
   const BACKEND = window.CLIMBY_BACKEND;
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
   const ENABLED_KEY = 'climby-focus-enabled';
   const IDENTITY_DISTANCE = FaceVerification.DEFAULT_THRESHOLD;
   const ENROLL_SAMPLES = 3;

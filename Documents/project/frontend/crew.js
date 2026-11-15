@@ -645,7 +645,9 @@ const Crew = (() => {
     async function decline(b) {
       const name = b.dataset.decline;
       b.disabled = true;
-      await api('/crew/requests/decline', { method: 'POST', body: JSON.stringify({ username: name }) });
+      const r = await api('/crew/requests/decline', { method: 'POST', body: JSON.stringify({ username: name }) });
+      // a decline that did not reach the server must not look done
+      if (!r.ok) { say(card, detail(r)); b.disabled = false; return; }
       data.incoming = data.incoming.filter(p => p.username !== name);
       draw();
       load();
@@ -839,7 +841,11 @@ const Crew = (() => {
   let liveTimer = 0;
   function focusLive() {
     const running = !!(window.Focus && Focus.isRunning && Focus.isRunning());
-    if (!window.Auth || !Auth.isLoggedIn()) return;
+    if (!window.Auth || !Auth.isLoggedIn()) {
+      // signed out mid-session: stop the heartbeat instead of leaving it running
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = 0; }
+      return;
+    }
     if (running && !liveTimer) {
       api('/crew/live', { method: 'POST', body: JSON.stringify({ on: true }) });
       liveTimer = setInterval(() => {

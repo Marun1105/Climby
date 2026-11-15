@@ -115,10 +115,21 @@ def _looks_like_the_sandbox_wall(err: Exception) -> bool:
     return "403" in text or "testing emails" in text or "verify a domain" in text
 
 
+def _mask(address: str) -> str:
+    """m***@example.com — enough to recognise in a log, not enough to collect."""
+    name, _, domain = (address or "").partition("@")
+    return f"{name[:1]}***@{domain}" if domain else "***"
+
+
 def send_email(to: str, subject: str, html: str, text: str = "") -> None:
     if not RESEND_API_KEY:
         # No key (local development) — just print the code to the console.
-        print(f"[email:dev] to {to}: {subject}\n{text or html}")
+        # On a real server (DATABASE_URL is set) the body is a sign-in code and
+        # the address is a child's: neither belongs in the hosting logs.
+        if os.environ.get("DATABASE_URL"):
+            print(f"[email] RESEND_API_KEY is not set — nothing was sent ({subject!r} to {_mask(to)})", flush=True)
+        else:
+            print(f"[email:dev] to {to}: {subject}\n{text or html}")
         return
 
     # The account already exists by the time we get here. If Resend refuses
@@ -138,7 +149,7 @@ def send_email(to: str, subject: str, html: str, text: str = "") -> None:
         _delivery["last_error"] = repr(err)[:300]
         if _looks_like_the_sandbox_wall(err):
             print("[email] " + _SANDBOX_HINT.format(sender=FROM_EMAIL), flush=True)
-        print(f"[email] delivery to {to} FAILED "
+        print(f"[email] delivery to {_mask(to)} FAILED "
               f"({_delivery['failed']} so far): {err!r}", flush=True)
 
 

@@ -83,13 +83,13 @@ class TaskIn(BaseModel):
 class PlanRequest(BaseModel):
     # /plan и /split са отворени и без вход, затова тук стои таванът на разхода.
     tasks: List[TaskIn] = Field(max_length=50)
-    lang: str = "en"
+    lang: str = Field(default="en", max_length=16)
 
 
 class SplitRequest(BaseModel):
     text: str = Field(max_length=1000)
     subject: Optional[str] = Field(default=None, max_length=100)
-    lang: str = "en"
+    lang: str = Field(default="en", max_length=16)
 
 
 @router.post("")

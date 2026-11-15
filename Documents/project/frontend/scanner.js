@@ -433,6 +433,9 @@ const Scanner = (() => {
       cap.getContext('2d').drawImage(img, 0, 0);
       enterAdjustStage(cap);
     };
+    // A HEIC from an iPhone, or a broken file: nothing happened at all, with
+    // the camera already switched off.
+    img.onerror = () => { if (window.Toast) Toast.show(t('scanner.errImage')); };
     img.src = dataUrl;
   }
 

@@ -123,7 +123,8 @@ const Chat = (() => {
       if (turn.role === 'user') el.textContent = turn.text;
       else {
         render(turn.text, el);
-        if (window.Speak) Speak.attach(el);
+        // silent: an old answer put back on screen is not read aloud again
+        if (window.Speak) Speak.attach(el, { silent: true });
         if (window.Copy) Copy.attach(el);
       }
     }
