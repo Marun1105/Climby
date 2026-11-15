@@ -294,6 +294,7 @@
       <button type="button" class="settings-nav-link" data-settings-jump="setTutor"><span class="ai-name" data-i18n="settings.secTutor">ClimbAI</span></button>
       <button type="button" class="settings-nav-link" data-settings-jump="setFamily" data-settings-role="parent student" data-i18n="nav.family">Family</button>
       <button type="button" class="settings-nav-link" data-settings-jump="setClass" data-settings-role="teacher student" data-i18n="nav.classes">Class</button>
+      <button type="button" class="settings-nav-link" data-settings-jump="setWhoSees" data-settings-role="student" data-i18n="whosees.title">Кой какво вижда</button>
       <button type="button" class="settings-nav-link" data-settings-jump="setApp" data-i18n="settings.secApp">The app</button>
     </nav>
     <div class="settings-main">
@@ -503,6 +504,16 @@
       </div>
       <p class="settings-note" data-i18n="settings.streakNote">Броят на дните подред е за теб. Ако те притеснява, изключи го — учебните ти дни пак се броят.</p>
     </div>
+    <div class="settings-row" data-icon="sky">
+      <span class="settings-label" data-i18n="settings.rest">Почивни дни</span>
+      <div class="settings-control">
+        <select class="settings-select" data-pref="rest" data-i18n-aria-label="settings.rest" aria-label="Rest days">
+          <option value="none" data-i18n="settings.restNone">Няма</option>
+          <option value="weekend" data-i18n="settings.restWeekend">Събота и неделя</option>
+        </select>
+      </div>
+      <p class="settings-note" data-i18n="settings.restNote">Почивен ден не прекъсва поредицата. Ако учиш в него, пак се брои.</p>
+    </div>
     </section>
     <section class="settings-group" id="setTutor">
     <h3 class="settings-section"><span class="ai-name" data-i18n="settings.secTutor">ClimbAI</span></h3>
@@ -666,6 +677,38 @@
     <div id="studentClassesEmpty" class="empty-state hidden"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 2.5 9 12 13.8 21.5 9z"/><path d="M6.5 11.3V16c0 1.7 2.5 3 5.5 3s5.5-1.3 5.5-3v-4.7"/></svg></span><p class="empty-title" data-i18n="classes.emptyStudent">Още не си в клас. Поискай код от учителя си.</p></div>
   </div>
     </section>
+    <!-- Who can see what: one place, in plain words, with the live state of
+         every optional switch. Filled by whosees.js. -->
+    <section class="settings-group" id="setWhoSees" data-settings-role="student">
+      <h3 class="settings-section" data-icon="eye" data-i18n="whosees.title">Кой какво вижда</h3>
+      <div class="whosees">
+        <div class="whosees-block whosees-never">
+          <strong data-i18n="whosees.neverTitle">Какво никога не правим</strong>
+          <ul>
+            <li data-i18n="whosees.never1">Не показваме реклами и не продаваме данни.</li>
+            <li data-i18n="whosees.never2">Кадрите от камерата не напускат това устройство и не се пазят.</li>
+            <li data-i18n="whosees.never3">Родители и учители не виждат въпросите ти към ClimbAI, нито текста на задачите ти.</li>
+            <li data-i18n="whosees.never4">Никой освен теб не вижда колко от времето си бил на бюрото.</li>
+          </ul>
+        </div>
+        <div class="whosees-block">
+          <strong data-i18n="whosees.friendsTitle">Приятели</strong>
+          <p data-i18n="whosees.friendsAlways">Виждат името, снимката и класа ти — само след като сте се приели взаимно.</p>
+          <p><span data-i18n="whosees.friendsLive">Че учиш в момента:</span> <b id="whoseesLive">—</b></p>
+          <p><span data-i18n="whosees.friendsPoints">Точките ти и дните подред:</span> <b id="whoseesPoints">—</b></p>
+          <button id="whoseesFriendsBtn" class="btn-secondary" type="button" data-i18n="whosees.friendsBtn">Промени в „Приятели“</button>
+        </div>
+        <div class="whosees-block">
+          <strong data-i18n="whosees.adultsTitle">Родител или учител, с когото си се свързал с код</strong>
+          <p data-i18n="whosees.adultsSee">Виждат само числа: колко задачи са свършени, колко чакат и колко са закъснели, колко минути си учил през последните 7 дни и колко дни подред.</p>
+          <p data-i18n="whosees.adultsHow">Свързват се само когато ти им покажеш код. Можеш да прекъснеш връзката по всяко време от „Семейство“ или „Клас“.</p>
+        </div>
+        <div class="whosees-block">
+          <strong class="ai-name" data-i18n="whosees.aiTitle">ClimbAI</strong>
+          <p data-i18n="whosees.aiSee">Получава въпроса ти и снимката, която пращаш. Какво още знае за теб, избираш в „Памет на ClimbAI“ — там виждаш и точния текст.</p>
+        </div>
+      </div>
+    </section>
     <section class="settings-group" id="setApp">
     <h3 class="settings-section" data-i18n="settings.secApp">The app</h3>
     <div class="settings-row" data-icon="compass">
@@ -803,6 +846,7 @@
   <div id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="onboarding-card">
       <div id="onboardingSteps" class="onboarding-steps"></div>
+        <p id="onboardingCount" class="onboarding-count" aria-hidden="true"></p>
       <div class="onboarding-icon" id="onboardingIcon" aria-hidden="true"></div>
       <h2 id="onboardingTitle" class="onboarding-title">Добре дошъл в Climby</h2>
       <p id="onboardingBody" class="onboarding-body">Снимай задача от учебника и AI учителят ще ти обясни стъпка по стъпка.</p>
@@ -1558,6 +1602,7 @@
 <script src="sessions.js"></script>
 <script src="mirror.js"></script>
 <script src="family.js"></script>
+<script src="whosees.js"></script>
 <script src="classes.js"></script>
 <script src="welcome.js"></script>
 <script src="onboarding.js"></script>

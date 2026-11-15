@@ -221,8 +221,7 @@ def crew(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
                     fof[y] = fof.get(y, 0) + 1
     incoming_ids = [r.from_user_id for r in db.query(FriendRequest).filter(FriendRequest.to_user_id == user.id)]
     outgoing_ids = {r.to_user_id for r in db.query(FriendRequest).filter(FriendRequest.from_user_id == user.id)}
-    suggested_ids = [i for i, _ in sorted(fof.items(), key=lambda kv: -kv[1])
-                     if i not in outgoing_ids and i not in incoming_ids][:12]
+    suggested_ids = []
     others = _visible(db, [i for i in incoming_ids if i not in blocked] + suggested_ids)
 
     # numbers only for friends and yourself
@@ -241,7 +240,9 @@ def crew(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
                     sorted(friends.items(), key=lambda kv: ((kv[1][0].display_name or "").lower(), kv[1][0].username or ""))],
         "incoming": [_stranger(others[i][0], mutual(i)) for i in incoming_ids if i in others],
         "outgoing": [u.username for u in db.query(User).filter(User.id.in_(list(outgoing_ids)))] if outgoing_ids else [],
-        "suggested": [_stranger(others[i][0], fof.get(i, 0)) for i in suggested_ids if i in others][:6],
+        # Nobody is suggested. A friend is someone whose username you were told,
+        # not someone the app thought you might like to add.
+        "suggested": [],
         "groups": [],
     }
 
@@ -356,12 +357,14 @@ def search(q: str, request: Request, user: User = Depends(get_current_user), db:
     name = q.strip().lstrip("@").lower()
     if len(name) < 3 or not re.match(r"^[a-z0-9._]+$", name):
         return []
-    like = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    # The whole username, exactly. Matching on the first letters let anyone
+    # page through the students of the app three letters at a time; a friend is
+    # someone who told you their username.
     hits = (db.query(User.id)
             .join(SocialProfile, SocialProfile.user_id == User.id)
-            .filter(func.lower(User.username).like(like, escape="\\"), User.id != user.id,
+            .filter(func.lower(User.username) == name, User.id != user.id,
                     func.coalesce(User.role, "student") == "student")
-            .order_by(func.length(User.username)).limit(40).all())
+            .limit(1).all())
     blocked = _blocked_ids(db, user.id)
     friends = _friend_ids(db, user.id)
     found = _visible(db, [i for (i,) in hits if i not in blocked and i not in friends])

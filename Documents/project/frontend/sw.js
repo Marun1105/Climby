@@ -89,6 +89,7 @@ const SHELL = [
   './breaks.js',
   './holds-fx.js',
   './crew.js',
+  './whosees.js',
   './crew.css',
   './homework-reminders.js',
   './sessions.js',

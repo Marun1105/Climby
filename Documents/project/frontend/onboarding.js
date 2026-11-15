@@ -309,6 +309,12 @@ const Onboarding = (() => {
     dots.innerHTML = '';
     steps.forEach((_, i) => dots.appendChild(el('span', 'onboarding-dot' + (i === index ? ' active' : ''))));
     dots.setAttribute('aria-label', t('onb.progress', { n: index + 1, of: steps.length }));
+    // In words, with what is already behind them counted: the account exists,
+    // so the first thing the count says is that something is done. The last
+    // step is not a question.
+    const left = steps.length - 1 - index;
+    $('onboardingCount').textContent = step === 'done' ? ''
+      : t(left === 1 ? 'onb.leftOne' : 'onb.left', { n: left });
 
     const choices = $('onboardingChoices');
     const fields = $('onboardingFields');

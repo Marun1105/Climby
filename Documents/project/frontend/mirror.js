@@ -38,12 +38,22 @@ const Mirror = (() => {
   // day is forgiven per streak: a streak that dies on the first missed day is a
   // streak that makes people quit on the second, because the thing they were
   // protecting is already gone.
+  // A planned day off (Settings → rest days): missing it never breaks a run,
+  // and it uses up no forgiveness. Studying on it still counts.
+  function isRest(back) {
+    if (!window.Prefs || Prefs.get('rest') !== 'weekend') return false;
+    const d = new Date(); d.setDate(d.getDate() - back);
+    return d.getDay() === 0 || d.getDay() === 6;
+  }
+
   function streakOf(activeDays) {
     let n = 0;
     let back = activeDays.has(daysAgo(0)) ? 0 : 1;
+    while (back < 120 && !activeDays.has(daysAgo(back)) && isRest(back)) back++;
     let grace = 1;
     for (;;) {
       if (activeDays.has(daysAgo(back))) { n++; back++; continue; }
+      if (isRest(back) && back < 120) { back++; continue; }
       if (grace && n > 0) { grace = 0; back++; continue; }
       break;
     }
@@ -56,6 +66,7 @@ const Mirror = (() => {
     let best = 0, run = 0, grace = 1;
     for (let back = 120; back >= 0; back--) {
       if (activeDays.has(daysAgo(back))) { run++; best = Math.max(best, run); }
+      else if (isRest(back)) { /* a day off: the run stands */ }
       else if (run > 0 && grace) { grace = 0; }
       else { run = 0; grace = 1; }
     }
@@ -260,7 +271,7 @@ const Mirror = (() => {
     // saved, a question asked. The line should already be true when you return.
     window.addEventListener('climby:activity', render);
     window.addEventListener('climby:tasks-changed', render);
-    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak') render(); });
+    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak' || e.detail.key === 'rest') render(); });
     render();
   }
 

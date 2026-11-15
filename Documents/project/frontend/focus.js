@@ -116,14 +116,20 @@ const Focus = (() => {
 
   function computeStreak(sessions) {
     const days = new Set(sessions.map(s => dateKey(s.created_at)));
+    // A planned day off (Settings → rest days) never breaks the run.
+    const rest = d => window.Prefs && Prefs.get('rest') === 'weekend' && (d.getDay() === 0 || d.getDay() === 6);
     const cursor = new Date();
-    if (!days.has(dateKey(cursor.toISOString()))) {
+    // Today may still be empty; a rest day may be empty. Step back to the last
+    // day that had to have something — if that one is empty, there is no run.
+    if (!days.has(dateKey(cursor.toISOString()))) cursor.setDate(cursor.getDate() - 1);
+    for (let guard = 0; guard < 7 && !days.has(dateKey(cursor.toISOString())) && rest(cursor); guard++) {
       cursor.setDate(cursor.getDate() - 1);
-      if (!days.has(dateKey(cursor.toISOString()))) return 0;
     }
+    if (!days.has(dateKey(cursor.toISOString()))) return 0;
     let streak = 0;
-    while (days.has(dateKey(cursor.toISOString()))) {
-      streak++;
+    for (let guard = 0; guard < 400; guard++) {
+      if (days.has(dateKey(cursor.toISOString()))) streak++;
+      else if (!rest(cursor)) break;
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
@@ -1321,7 +1327,7 @@ const Focus = (() => {
       }
     });
     window.addEventListener('climby:auth-changed', renderStreak);
-    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak') renderStreak(); });
+    window.addEventListener('climby:pref-changed', e => { if (e.detail.key === 'streak' || e.detail.key === 'rest') renderStreak(); });
     // Спиране отвсякъде. Води и до раздела, защото там е обобщението — иначе
     // сесията свършва и нищо не казва колко е станала.
     const badgeStop = document.getElementById('focusBadgeStop');

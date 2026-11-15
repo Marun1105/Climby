@@ -45,6 +45,7 @@ const Tutor = (() => {
     clearSteps();
     history = [];
     briefId = null;
+    triedFirst = false;
     hideRead();
     $('answer').classList.add('hidden');
     $('answer').innerHTML = '';
@@ -169,7 +170,20 @@ const Tutor = (() => {
     const note = document.createElement('p');
     note.className = 'read-note';
     note.textContent = t('scanner.readingNote');
-    el.append(count, bar, note, cancelButton());
+    // The wait is the moment to ask what was tried: it gives the tutor a place
+    // to start, and it is the attempt the full solution waits for. Optional —
+    // an empty box changes nothing.
+    const tried = document.createElement('label');
+    tried.className = 'wait-tried';
+    const triedText = document.createElement('span');
+    triedText.textContent = t('scanner.triedLabel');
+    const triedBox = document.createElement('textarea');
+    triedBox.id = 'triedBox';
+    triedBox.rows = 2;
+    triedBox.maxLength = 400;
+    triedBox.placeholder = t('scanner.triedPlaceholder');
+    tried.append(triedText, triedBox);
+    el.append(count, bar, note, tried, cancelButton());
 
     let stage = 0;
     let since = Date.now();
@@ -261,6 +275,9 @@ const Tutor = (() => {
     });
   }
 
+  // Did the student say what they tried while the page was being read?
+  let triedFirst = false;
+
   // The request in flight, so Cancel can stop it, and what to put back.
   let inFlight = null;
 
@@ -299,7 +316,7 @@ const Tutor = (() => {
   // attempt first, then the answer (docs/ux-research-deep-2026-11.md, 17-18).
   function updateQuickReplies() {
     const replies = history.filter(h => h.role === 'user').length - 1;
-    const unlocked = replies >= 1;
+    const unlocked = replies >= 1 || triedFirst;
     $('fullSolutionBtn').classList.toggle('hidden', !unlocked);
     $('solutionGate').classList.toggle('hidden', unlocked);
   }
@@ -313,6 +330,7 @@ const Tutor = (() => {
   }
 
   async function send(question, target, opts = {}) {
+    let attempted = false;
     busy = true;
     const asked = epoch;
     const first = !history.length;
@@ -342,6 +360,13 @@ const Tutor = (() => {
         }
         if (!res) {
           progress.next();
+          // What the student typed while the page was being read goes with the
+          // question. After this point the box is closed: it can no longer be sent.
+          const box = document.getElementById('triedBox');
+          const tried = box ? box.value.trim() : '';
+          if (box) box.closest('.wait-tried').remove();
+          attempted = !!tried;
+          if (tried) question = question + '\n\n' + t('scanner.triedPrefix') + ' ' + tried;
           res = await post(question, !briefId, controller.signal, opts.mode);
         }
       } else {
@@ -375,6 +400,7 @@ const Tutor = (() => {
       renderAnswer(data.answer, target);
       AIActivity.sign(target, took);
       history.push({ role: 'user', text: question }, { role: 'assistant', text: data.answer });
+      if (attempted) triedFirst = true;
       $('followUp').classList.remove('hidden');
       updateQuickReplies();
       announceIfAway();
@@ -406,6 +432,7 @@ const Tutor = (() => {
     epoch++;
     history = [];
     briefId = null;
+    triedFirst = false;
     hideRead();
     $('thread').innerHTML = '';
     await send(question, $('answer'));
