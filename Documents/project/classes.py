@@ -10,6 +10,7 @@ from collections import defaultdict
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import rate_limit
@@ -135,7 +136,11 @@ def join_class(
         raise HTTPException(400, "You are already in this class.")
 
     db.add(ClassroomMember(classroom_id=classroom.id, student_user_id=user.id))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(400, "You are already in this class.")
     return {"status": "ok", "class_name": classroom.name}
 
 

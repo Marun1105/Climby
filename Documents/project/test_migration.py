@@ -558,3 +558,29 @@ def test_the_nullable_migration_does_not_repeat_itself(monkeypatch):
     monkeypatch.setattr(migrations, "_dialect_name", lambda: "postgresql")
     monkeypatch.setattr(migrations, "_password_hash_is_nullable", lambda: True)
     assert migrations._drop_password_not_null() is False, "it would ALTER again"
+
+
+def test_migration_makes_family_links_one_per_pair(old_engine):
+    """Two links for one parent and child: removing one left the parent still
+    seeing the child. The live table predates the constraint in the model."""
+    _make_old_schema(old_engine)
+    with old_engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS family_links"))
+        conn.execute(text(
+            "CREATE TABLE family_links (id VARCHAR PRIMARY KEY, parent_user_id VARCHAR NOT NULL, "
+            "student_user_id VARCHAR NOT NULL, created_at DATETIME)"))
+        for i, (p, s) in enumerate((("p1", "s1"), ("p1", "s1"), ("p1", "s2"))):
+            conn.execute(text(
+                f"INSERT INTO family_links (id, parent_user_id, student_user_id, created_at) "
+                f"VALUES ('l{i}', '{p}', '{s}', '2026-01-0{i + 1}')"))
+
+    assert "uq_family_link_pair" in migrations.run()
+
+    with old_engine.begin() as conn:
+        ids = sorted(r[0] for r in conn.execute(text("SELECT id FROM family_links")).fetchall())
+    assert ids == ["l0", "l2"], "the older of the two duplicates stays; the other pair is untouched"
+    with pytest.raises(IntegrityError):
+        with old_engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO family_links (id, parent_user_id, student_user_id) VALUES ('l9', 'p1', 's1')"))
+    assert "uq_family_link_pair" not in migrations.run(), "a second run changes nothing"

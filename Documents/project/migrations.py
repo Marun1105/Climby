@@ -522,6 +522,52 @@ def _create_code_attempts_unique_index() -> bool:
     return True
 
 
+def _create_pair_unique_index(table: str, cols: list, name: str) -> bool:
+    """One row per pair on a table that already exists (family links, class
+    members). create_all() does not touch an existing table, so on the live
+    database the constraint in the model changes nothing without this.
+
+    Duplicates are removed first, keeping the oldest row of each pair: the rows
+    are identical in meaning, and the index cannot be created over them.
+    """
+    if not _table_exists(table):
+        return False
+    inspector = inspect(engine)
+    already = [
+        c for c in inspector.get_unique_constraints(table)
+        if list(c.get("column_names") or []) == cols
+    ] + [
+        i for i in inspector.get_indexes(table)
+        if i.get("unique") and list(i.get("column_names") or []) == cols
+    ]
+    if already:
+        return False
+    a, b = cols
+    with engine.begin() as conn:
+        dupes = conn.execute(text(
+            f"SELECT {a}, {b} FROM {table} GROUP BY {a}, {b} HAVING COUNT(*) > 1"
+        )).fetchall()
+        for va, vb in dupes:
+            rows = conn.execute(text(
+                f"SELECT id FROM {table} WHERE {a} = :a AND {b} = :b ORDER BY created_at, id"
+            ), {"a": va, "b": vb}).fetchall()
+            conn.execute(text(
+                f"DELETE FROM {table} WHERE {a} = :a AND {b} = :b AND id <> :keep"
+            ), {"a": va, "b": vb, "keep": rows[0][0]})
+        conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS {name} ON {table} ({a}, {b})"))
+    return True
+
+
+def _create_plain_index(table: str, cols: list, name: str) -> bool:
+    if not _table_exists(table):
+        return False
+    if any(i.get("name") == name for i in inspect(engine).get_indexes(table)):
+        return False
+    with engine.begin() as conn:
+        conn.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({', '.join(cols)})"))
+    return True
+
+
 def run() -> list:
     """Връща имената на приложените промени — полезно в логовете на Render.
 
@@ -592,4 +638,17 @@ def run() -> list:
         # таблицата е заварена и create_all() няма как да я поправи.
         if _tolerantly("uq_code_attempts_user_purpose", _create_code_attempts_unique_index):
             applied.append("uq_code_attempts_user_purpose")
+        # One link per parent and child, one membership per class and student.
+        for table, cols, name in (
+            ("family_links", ["parent_user_id", "student_user_id"], "uq_family_link_pair"),
+            ("classroom_members", ["classroom_id", "student_user_id"], "uq_classroom_member_pair"),
+        ):
+            if _tolerantly(name, lambda t=table, c=cols, n=name: _create_pair_unique_index(t, c, n)):
+                applied.append(name)
+        # "This person, newest first" — asked on every screen that lists anything.
+        for table, name in (("focus_sessions", "ix_focus_sessions_user_created"),
+                            ("scan_history", "ix_scan_history_user_created"),
+                            ("hold_entries", "ix_hold_entries_user_created")):
+            if _tolerantly(name, lambda t=table, n=name: _create_plain_index(t, ["user_id", "created_at"], n)):
+                applied.append(name)
     return applied

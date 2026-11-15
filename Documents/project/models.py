@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -137,6 +138,9 @@ class FamilyLink(Base):
     """Връзка родител -> ученик. Ролята не се пази в users: родител е този,
     който има поне една такава връзка — така не е нужна миграция на съществуващата таблица."""
     __tablename__ = "family_links"
+    # One link per pair. Without it two codes redeemed at the same moment made
+    # two links, and removing one left the parent still seeing the child.
+    __table_args__ = (UniqueConstraint("parent_user_id", "student_user_id", name="uq_family_link_pair"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     parent_user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
@@ -162,6 +166,7 @@ class Classroom(Base):
 
 class ClassroomMember(Base):
     __tablename__ = "classroom_members"
+    __table_args__ = (UniqueConstraint("classroom_id", "student_user_id", name="uq_classroom_member_pair"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     classroom_id = Column(String, ForeignKey("classrooms.id"), nullable=False, index=True)
@@ -171,6 +176,8 @@ class ClassroomMember(Base):
 
 class FocusSession(Base):
     __tablename__ = "focus_sessions"
+    # every list and every total reads "this person, newest first"
+    __table_args__ = (Index("ix_focus_sessions_user_created", "user_id", "created_at"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
@@ -181,6 +188,7 @@ class FocusSession(Base):
 
 class ScanHistory(Base):
     __tablename__ = "scan_history"
+    __table_args__ = (Index("ix_scan_history_user_created", "user_id", "created_at"),)
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
@@ -410,7 +418,8 @@ class HoldEntry(Base):
     done on time, the same day's streak can pay once and only once, however many
     times the request that earns it is retried."""
     __tablename__ = "hold_entries"
-    __table_args__ = (UniqueConstraint("user_id", "reason", "ref", name="uq_hold_once"),)
+    __table_args__ = (UniqueConstraint("user_id", "reason", "ref", name="uq_hold_once"),
+                      Index("ix_hold_entries_user_created", "user_id", "created_at"))
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)

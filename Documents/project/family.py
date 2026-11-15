@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import and_, case, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import rate_limit
@@ -130,7 +131,12 @@ def link_student(
         raise HTTPException(400, "That code is invalid or has already been used.")
 
     db.add(FamilyLink(parent_user_id=user.id, student_user_id=invite.student_user_id))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # two codes for the same child, redeemed at the same moment
+        db.rollback()
+        raise HTTPException(400, "You are already linked to this student.")
     return {"status": "ok"}
 
 
